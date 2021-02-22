@@ -5,8 +5,8 @@ SIMPLE = simple
 CFLAGS += -DGL_SILENCE_DEPRECATION
 CFLAGS += $(shell pkg-config --cflags glew)
 
-SRC = jake_gl.c jake_gl_cocoa.m
-HEADERS = jake_gl.h jake_gl_internal.h
+SRC = jake_gl_cocoa.m
+HEADERS = jake_gl.h
 
 LIBS := -framework OpenGL -framework Cocoa
 
