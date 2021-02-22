@@ -13,7 +13,7 @@
 #ifndef NK_JAKE_GL3_H_
 #define NK_JAKE_GL3_H_
 
-//#include <OpenGL/gl.h>
+#include <OpenGL/gl3.h>
 #include "jake_gl.h"
 
 enum nk_jake_init_state

@@ -142,22 +142,22 @@ struct _JATGLmodule
     CFBundleRef     framework;
 };
 
-extern _JATGLmodule _glfw;
+extern _JATGLmodule _JATGL;
 
-int _glfwPlatformInit(void);
-void _glfwPlatformTerminate(void);
-void _glfwPlatformGetCursorPos(_JATGLwindow* window, double* xpos, double* ypos);
-const char* _glfwPlatformGetScancodeName(int scancode);
+int _JATGLPlatformInit(void);
+void _JATGLPlatformTerminate(void);
+void _JATGLPlatformGetCursorPos(_JATGLwindow* window, double* xpos, double* ypos);
+const char* _JATGLPlatformGetScancodeName(int scancode);
 
-int _glfwPlatformCreateWindow(_JATGLwindow* window, const _JATGLwindow_config* wndconfig);
-void _glfwPlatformDestroyWindow(_JATGLwindow* window);
-void _glfwPlatformGetWindowSize(_JATGLwindow* window, int* width, int* height);
-void _glfwPlatformGetFramebufferSize(_JATGLwindow* window, int* width, int* height);
+int _JATGLPlatformCreateWindow(_JATGLwindow* window, const _JATGLwindow_config* wndconfig);
+void _JATGLPlatformDestroyWindow(_JATGLwindow* window);
+void _JATGLPlatformGetWindowSize(_JATGLwindow* window, int* width, int* height);
+void _JATGLPlatformGetFramebufferSize(_JATGLwindow* window, int* width, int* height);
 
-void _glfwPlatformPollEvents(void);
+void _JATGLPlatformPollEvents(void);
 
-void _glfwInputKey(_JATGLwindow* window, int key, int scancode, int action);
-void _glfwInputChar(_JATGLwindow* window, unsigned int codepoint, int mods, GLFWbool plain);
-void _glfwInputMouseClick(_JATGLwindow* window, int button, int action);
-void _glfwInputCursorPos(_JATGLwindow* window, double xpos, double ypos);
+void _JATGLInputKey(_JATGLwindow* window, int key, int scancode, int action);
+void _JATGLInputChar(_JATGLwindow* window, unsigned int codepoint, int mods, GLFWbool plain);
+void _JATGLInputMouseClick(_JATGLwindow* window, int button, int action);
+void _JATGLInputCursorPos(_JATGLwindow* window, double xpos, double ypos);
 

@@ -3,7 +3,7 @@
 #include <pthread.h>
 #include <mach/mach_time.h>
 
-_JATGLmodule _glfw = { JATGL_FALSE };
+_JATGLmodule _JATGL = { JATGL_FALSE };
 
 #define _JATGL_SWAP_POINTERS(x, y) \
     {                             \
@@ -13,9 +13,9 @@ _JATGLmodule _glfw = { JATGL_FALSE };
         y = t;                    \
     }
 
-static int _glfwPlatformGetKeyScancode(int key)
+static int _JATGLPlatformGetKeyScancode(int key)
 {
-    return _glfw.ns.scancodes[key];
+    return _JATGL.ns.scancodes[key];
 }
 
 static void InitTimerNS(void)
@@ -23,7 +23,7 @@ static void InitTimerNS(void)
     mach_timebase_info_data_t info;
     mach_timebase_info(&info);
 
-    _glfw.timer.frequency = (info.denom * 1e9) / info.numer;
+    _JATGL.timer.frequency = (info.denom * 1e9) / info.numer;
 }
 
 static GLFWbool CreateTLS(_JATGL_TLS* tls)
@@ -51,22 +51,22 @@ static void* GetTLS(_JATGL_TLS* tls)
 
 static _JATGLwindow* GetCurrentContext(void)
 {
-    return GetTLS(&_glfw.contextSlot);
+    return GetTLS(&_JATGL.contextSlot);
 }
 
 
 static void terminate(void)
 {
-    while (_glfw.windowListHead)
-        JATGL_DeleteWindow((JATGLwindow*) _glfw.windowListHead);
+    while (_JATGL.windowListHead)
+        JATGL_DeleteWindow((JATGLwindow*) _JATGL.windowListHead);
 
-    _glfwPlatformTerminate();
+    _JATGLPlatformTerminate();
 
-    _glfw.initialized = JATGL_FALSE;
+    _JATGL.initialized = JATGL_FALSE;
 
-    DestroyTLS(&_glfw.contextSlot);
+    DestroyTLS(&_JATGL.contextSlot);
 
-    memset(&_glfw, 0, sizeof(_glfw));
+    memset(&_JATGL, 0, sizeof(_JATGL));
 }
 
 static GLFWbool RefreshContextAttribs(_JATGLwindow* window)
@@ -108,11 +108,11 @@ JATGLwindow* JATGL_NewWindow(int width, int height, const char* title)
     wndconfig.title   = title;
 
     window = calloc(1, sizeof(_JATGLwindow));
-    window->next = _glfw.windowListHead;
-    _glfw.windowListHead = window;
+    window->next = _JATGL.windowListHead;
+    _JATGL.windowListHead = window;
 
     // Open the actual window and create its context
-    if (!_glfwPlatformCreateWindow(window, &wndconfig))
+    if (!_JATGLPlatformCreateWindow(window, &wndconfig))
     {
         JATGL_DeleteWindow((JATGLwindow*) window);
         return NULL;
@@ -142,10 +142,10 @@ void JATGL_DeleteWindow(JATGLwindow* handle)
     if (window == GetCurrentContext())
         JATGL_MakeContextCurrent(NULL);
 
-    _glfwPlatformDestroyWindow(window);
+    _JATGLPlatformDestroyWindow(window);
 
     {
-        _JATGLwindow** prev = &_glfw.windowListHead;
+        _JATGLwindow** prev = &_JATGL.windowListHead;
         while (*prev != window)
             prev = &((*prev)->next);
 
@@ -173,7 +173,7 @@ void JATGL_GetWindowSize(JATGLwindow* handle, int* width, int* height)
     if (height)
         *height = 0;
 
-    _glfwPlatformGetWindowSize(window, width, height);
+    _JATGLPlatformGetWindowSize(window, width, height);
 }
 
 void JATGL_GetFrameBufferSize(JATGLwindow* handle, int* width, int* height)
@@ -186,12 +186,12 @@ void JATGL_GetFrameBufferSize(JATGLwindow* handle, int* width, int* height)
     if (height)
         *height = 0;
 
-    _glfwPlatformGetFramebufferSize(window, width, height);
+    _JATGLPlatformGetFramebufferSize(window, width, height);
 }
 
 void JATGL_Poll(void)
 {
-    _glfwPlatformPollEvents();
+    _JATGLPlatformPollEvents();
 }
 
 void JATGL_MakeContextCurrent(JATGLwindow* handle)
@@ -230,18 +230,18 @@ JATGLglproc JATGL_GetGLProcAddress(const char* procname)
 
 int JATGL_Initialize(void)
 {
-    if (_glfw.initialized)
+    if (_JATGL.initialized)
         return JATGL_TRUE;
 
-    memset(&_glfw, 0, sizeof(_glfw));
+    memset(&_JATGL, 0, sizeof(_JATGL));
 
-    if (!_glfwPlatformInit())
+    if (!_JATGLPlatformInit())
     {
         terminate();
         return JATGL_FALSE;
     }
 
-    if (!CreateTLS(&_glfw.contextSlot))
+    if (!CreateTLS(&_JATGL.contextSlot))
     {
         terminate();
         return JATGL_FALSE;
@@ -249,19 +249,19 @@ int JATGL_Initialize(void)
 
     InitTimerNS();
 
-    _glfw.initialized = JATGL_TRUE;
+    _JATGL.initialized = JATGL_TRUE;
     return JATGL_TRUE;
 }
 
 void JATGL_Shutdown(void)
 {
-    if (!_glfw.initialized)
+    if (!_JATGL.initialized)
         return;
 
     terminate();
 }
 
-void _glfwInputKey(_JATGLwindow* window, int key, int scancode, int action)
+void _JATGLInputKey(_JATGLwindow* window, int key, int scancode, int action)
 {
     if (key >= 0 && key <= JATGL_KEY_LAST)
     {
@@ -277,7 +277,7 @@ void _glfwInputKey(_JATGLwindow* window, int key, int scancode, int action)
     }
 }
 
-void _glfwInputChar(_JATGLwindow* window, unsigned int codepoint, int mods, GLFWbool plain)
+void _JATGLInputChar(_JATGLwindow* window, unsigned int codepoint, int mods, GLFWbool plain)
 {
     if (codepoint < 32 || (codepoint > 126 && codepoint < 160))
         return;
@@ -289,7 +289,7 @@ void _glfwInputChar(_JATGLwindow* window, unsigned int codepoint, int mods, GLFW
     }
 }
 
-void _glfwInputMouseClick(_JATGLwindow* window, int button, int action)
+void _JATGLInputMouseClick(_JATGLwindow* window, int button, int action)
 {
     if (button < 0 || button > 2)
         return;
@@ -299,7 +299,7 @@ void _glfwInputMouseClick(_JATGLwindow* window, int button, int action)
         window->callbacks.mouseButton((JATGLwindow*) window, button, action, 0);
 }
 
-void _glfwInputCursorPos(_JATGLwindow* window, double xpos, double ypos)
+void _JATGLInputCursorPos(_JATGLwindow* window, double xpos, double ypos)
 {
     window->virtualCursorPosX = xpos;
     window->virtualCursorPosY = ypos;
@@ -309,16 +309,16 @@ const char* JATGL_GetKeyStateName(int key, int scancode)
 {
     if (key != JATGL_KEY_UNKNOWN)
     {
-        scancode = _glfwPlatformGetKeyScancode(key);
+        scancode = _JATGLPlatformGetKeyScancode(key);
     }
 
-    return _glfwPlatformGetScancodeName(scancode);
+    return _JATGLPlatformGetScancodeName(scancode);
 }
 
 int JATGL_GetKeyStateScancode(int key)
 {
     assert(key >= JATGL_KEY_FIRST && key <= JATGL_KEY_LAST);
-    return _glfwPlatformGetKeyScancode(key);
+    return _JATGLPlatformGetKeyScancode(key);
 }
 
 int JATGL_GetKeyState(JATGLwindow* handle, int key)
@@ -350,7 +350,7 @@ void JATGL_GetMousePosition(JATGLwindow* handle, double* xpos, double* ypos)
     if (ypos)
         *ypos = 0;
 
-    _glfwPlatformGetCursorPos(window, xpos, ypos);
+    _JATGLPlatformGetCursorPos(window, xpos, ypos);
 }
 
 JATGLcharacter_function JATGL_SetCharacterCallback(JATGLwindow* handle, JATGLcharacter_function cbfun)
@@ -374,6 +374,6 @@ JATGLmouse_button_function JATGL_SetMouseButtonCallback(JATGLwindow* handle,
 
 double JATGL_GetTime(void)
 {
-    uint64_t frequency = _glfw.timer.frequency;
-    return (double) (mach_absolute_time() - _glfw.timer.offset) / frequency;
+    uint64_t frequency = _JATGL.timer.frequency;
+    return (double) (mach_absolute_time() - _JATGL.timer.offset) / frequency;
 }

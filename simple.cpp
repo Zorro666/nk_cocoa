@@ -60,7 +60,6 @@ int main(void)
     }
 
     JATGL_MakeContextCurrent(window);
-    //gladLoadGL(glfwGetProcAddress);
 
     GLuint vertex_buffer;
     glGenBuffers(1, &vertex_buffer);

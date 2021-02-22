@@ -2,10 +2,10 @@
 
 #include <pthread.h>
 
-#define kTISPropertyUnicodeKeyLayoutData _glfw.ns.tis.kPropertyUnicodeKeyLayoutData
-#define TISCopyCurrentKeyboardLayoutInputSource _glfw.ns.tis.CopyCurrentKeyboardLayoutInputSource
-#define TISGetInputSourceProperty _glfw.ns.tis.GetInputSourceProperty
-#define LMGetKbdType _glfw.ns.tis.GetKbdType
+#define kTISPropertyUnicodeKeyLayoutData _JATGL.ns.tis.kPropertyUnicodeKeyLayoutData
+#define TISCopyCurrentKeyboardLayoutInputSource _JATGL.ns.tis.CopyCurrentKeyboardLayoutInputSource
+#define TISGetInputSourceProperty _JATGL.ns.tis.GetInputSourceProperty
+#define LMGetKbdType _JATGL.ns.tis.GetKbdType
 
 static void SetTLS(_JATGL_TLS* tls, void* value)
 {
@@ -22,18 +22,18 @@ static void MakeContextCurrentNSGL(_JATGLwindow* window)
     else
         [NSOpenGLContext clearCurrentContext];
 
-    SetTLS(&_glfw.contextSlot, window);
+    SetTLS(&_JATGL.contextSlot, window);
 
     } // autoreleasepool
 }
 
 static GLFWbool InitNSGL(void)
 {
-    if (_glfw.framework)
+    if (_JATGL.framework)
         return JATGL_TRUE;
 
-    _glfw.framework = CFBundleGetBundleWithIdentifier(CFSTR("com.apple.opengl"));
-    assert(_glfw.framework);
+    _JATGL.framework = CFBundleGetBundleWithIdentifier(CFSTR("com.apple.opengl"));
+    assert(_JATGL.framework);
     return JATGL_TRUE;
 }
 
@@ -49,7 +49,7 @@ static void SwapBuffersNSGL(_JATGLwindow* window)
 static JATGLglproc GetProcAddressNSGL(const char* procname)
 {
     CFStringRef symbolName = CFStringCreateWithCString(kCFAllocatorDefault, procname, kCFStringEncodingASCII);
-    JATGLglproc symbol = CFBundleGetFunctionPointerForName(_glfw.framework, symbolName);
+    JATGLglproc symbol = CFBundleGetFunctionPointerForName(_JATGL.framework, symbolName);
     CFRelease(symbolName);
     return symbol;
 }
@@ -121,72 +121,72 @@ static void createKeyTables(void)
 {
     int scancode;
 
-    memset(_glfw.ns.keycodes, -1, sizeof(_glfw.ns.keycodes));
-    memset(_glfw.ns.scancodes, -1, sizeof(_glfw.ns.scancodes));
+    memset(_JATGL.ns.keycodes, -1, sizeof(_JATGL.ns.keycodes));
+    memset(_JATGL.ns.scancodes, -1, sizeof(_JATGL.ns.scancodes));
 
-    _glfw.ns.keycodes[0x0B] = JATGL_KEY_B;
-    _glfw.ns.keycodes[0x08] = JATGL_KEY_C;
-    _glfw.ns.keycodes[0x0E] = JATGL_KEY_E;
-    _glfw.ns.keycodes[0x0F] = JATGL_KEY_R;
-    _glfw.ns.keycodes[0x09] = JATGL_KEY_V;
-    _glfw.ns.keycodes[0x07] = JATGL_KEY_X;
-    _glfw.ns.keycodes[0x06] = JATGL_KEY_Z;
+    _JATGL.ns.keycodes[0x0B] = JATGL_KEY_B;
+    _JATGL.ns.keycodes[0x08] = JATGL_KEY_C;
+    _JATGL.ns.keycodes[0x0E] = JATGL_KEY_E;
+    _JATGL.ns.keycodes[0x0F] = JATGL_KEY_R;
+    _JATGL.ns.keycodes[0x09] = JATGL_KEY_V;
+    _JATGL.ns.keycodes[0x07] = JATGL_KEY_X;
+    _JATGL.ns.keycodes[0x06] = JATGL_KEY_Z;
 
-    _glfw.ns.keycodes[0x33] = JATGL_KEY_BACKSPACE;
-    _glfw.ns.keycodes[0x75] = JATGL_KEY_DELETE;
-    _glfw.ns.keycodes[0x7D] = JATGL_KEY_DOWN;
-    _glfw.ns.keycodes[0x77] = JATGL_KEY_END;
-    _glfw.ns.keycodes[0x24] = JATGL_KEY_ENTER;
-    _glfw.ns.keycodes[0x73] = JATGL_KEY_HOME;
-    _glfw.ns.keycodes[0x7B] = JATGL_KEY_LEFT;
-    _glfw.ns.keycodes[0x79] = JATGL_KEY_PAGE_DOWN;
-    _glfw.ns.keycodes[0x74] = JATGL_KEY_PAGE_UP;
-    _glfw.ns.keycodes[0x7C] = JATGL_KEY_RIGHT;
-    _glfw.ns.keycodes[0x30] = JATGL_KEY_TAB;
-    _glfw.ns.keycodes[0x7E] = JATGL_KEY_UP;
+    _JATGL.ns.keycodes[0x33] = JATGL_KEY_BACKSPACE;
+    _JATGL.ns.keycodes[0x75] = JATGL_KEY_DELETE;
+    _JATGL.ns.keycodes[0x7D] = JATGL_KEY_DOWN;
+    _JATGL.ns.keycodes[0x77] = JATGL_KEY_END;
+    _JATGL.ns.keycodes[0x24] = JATGL_KEY_ENTER;
+    _JATGL.ns.keycodes[0x73] = JATGL_KEY_HOME;
+    _JATGL.ns.keycodes[0x7B] = JATGL_KEY_LEFT;
+    _JATGL.ns.keycodes[0x79] = JATGL_KEY_PAGE_DOWN;
+    _JATGL.ns.keycodes[0x74] = JATGL_KEY_PAGE_UP;
+    _JATGL.ns.keycodes[0x7C] = JATGL_KEY_RIGHT;
+    _JATGL.ns.keycodes[0x30] = JATGL_KEY_TAB;
+    _JATGL.ns.keycodes[0x7E] = JATGL_KEY_UP;
 
     for (scancode = 0;  scancode < 256;  scancode++)
     {
         // Store the reverse translation for faster key name lookup
-        if (_glfw.ns.keycodes[scancode] >= 0)
-            _glfw.ns.scancodes[_glfw.ns.keycodes[scancode]] = scancode;
+        if (_JATGL.ns.keycodes[scancode] >= 0)
+            _JATGL.ns.scancodes[_JATGL.ns.keycodes[scancode]] = scancode;
     }
 }
 
 static GLFWbool updateUnicodeDataNS(void)
 {
-    if (_glfw.ns.inputSource)
+    if (_JATGL.ns.inputSource)
     {
-        CFRelease(_glfw.ns.inputSource);
-        _glfw.ns.inputSource = NULL;
-        _glfw.ns.unicodeData = nil;
+        CFRelease(_JATGL.ns.inputSource);
+        _JATGL.ns.inputSource = NULL;
+        _JATGL.ns.unicodeData = nil;
     }
 
-    _glfw.ns.inputSource = TISCopyCurrentKeyboardLayoutInputSource();
-    assert(_glfw.ns.inputSource);
+    _JATGL.ns.inputSource = TISCopyCurrentKeyboardLayoutInputSource();
+    assert(_JATGL.ns.inputSource);
 
-    _glfw.ns.unicodeData = TISGetInputSourceProperty(_glfw.ns.inputSource, kTISPropertyUnicodeKeyLayoutData);
-    assert(_glfw.ns.unicodeData);
+    _JATGL.ns.unicodeData = TISGetInputSourceProperty(_JATGL.ns.inputSource, kTISPropertyUnicodeKeyLayoutData);
+    assert(_JATGL.ns.unicodeData);
     return JATGL_TRUE;
 }
 
 static GLFWbool initializeTIS(void)
 {
     // This works only because Cocoa has already loaded it properly
-    _glfw.ns.tis.bundle = CFBundleGetBundleWithIdentifier(CFSTR("com.apple.HIToolbox"));
-    assert(_glfw.ns.tis.bundle);
+    _JATGL.ns.tis.bundle = CFBundleGetBundleWithIdentifier(CFSTR("com.apple.HIToolbox"));
+    assert(_JATGL.ns.tis.bundle);
 
-    CFStringRef* kPropertyUnicodeKeyLayoutData = CFBundleGetDataPointerForName(_glfw.ns.tis.bundle, CFSTR("kTISPropertyUnicodeKeyLayoutData"));
-    _glfw.ns.tis.CopyCurrentKeyboardLayoutInputSource = CFBundleGetFunctionPointerForName(_glfw.ns.tis.bundle, CFSTR("TISCopyCurrentKeyboardLayoutInputSource"));
-    _glfw.ns.tis.GetInputSourceProperty = CFBundleGetFunctionPointerForName(_glfw.ns.tis.bundle, CFSTR("TISGetInputSourceProperty"));
-    _glfw.ns.tis.GetKbdType = CFBundleGetFunctionPointerForName(_glfw.ns.tis.bundle, CFSTR("LMGetKbdType"));
+    CFStringRef* kPropertyUnicodeKeyLayoutData = CFBundleGetDataPointerForName(_JATGL.ns.tis.bundle, CFSTR("kTISPropertyUnicodeKeyLayoutData"));
+    _JATGL.ns.tis.CopyCurrentKeyboardLayoutInputSource = CFBundleGetFunctionPointerForName(_JATGL.ns.tis.bundle, CFSTR("TISCopyCurrentKeyboardLayoutInputSource"));
+    _JATGL.ns.tis.GetInputSourceProperty = CFBundleGetFunctionPointerForName(_JATGL.ns.tis.bundle, CFSTR("TISGetInputSourceProperty"));
+    _JATGL.ns.tis.GetKbdType = CFBundleGetFunctionPointerForName(_JATGL.ns.tis.bundle, CFSTR("LMGetKbdType"));
 
     if (!kPropertyUnicodeKeyLayoutData || !TISCopyCurrentKeyboardLayoutInputSource || !TISGetInputSourceProperty || !LMGetKbdType)
     {
         assert(false);
     }
 
-    _glfw.ns.tis.kPropertyUnicodeKeyLayoutData = *kPropertyUnicodeKeyLayoutData;
+    _JATGL.ns.tis.kPropertyUnicodeKeyLayoutData = *kPropertyUnicodeKeyLayoutData;
 
     return updateUnicodeDataNS();
 }
@@ -194,10 +194,10 @@ static GLFWbool initializeTIS(void)
 // Translate a macOS keycode
 static int translateKey(unsigned int key)
 {
-    if (key >= sizeof(_glfw.ns.keycodes) / sizeof(_glfw.ns.keycodes[0]))
+    if (key >= sizeof(_JATGL.ns.keycodes) / sizeof(_JATGL.ns.keycodes[0]))
         return JATGL_KEY_UNKNOWN;
 
-    return _glfw.ns.keycodes[key];
+    return _JATGL.ns.keycodes[key];
 }
 
 static NSUInteger translateKeyToModifierFlag(int key)
@@ -294,7 +294,7 @@ static NSUInteger translateKeyToModifierFlag(int key)
 
 - (void)mouseDown:(NSEvent *)event
 {
-    _glfwInputMouseClick(window, JATGL_MOUSE_BUTTON_LEFT, JATGL_PRESS);
+    _JATGLInputMouseClick(window, JATGL_MOUSE_BUTTON_LEFT, JATGL_PRESS);
 }
 
 - (void)mouseDragged:(NSEvent *)event
@@ -304,7 +304,7 @@ static NSUInteger translateKeyToModifierFlag(int key)
 
 - (void)mouseUp:(NSEvent *)event
 {
-    _glfwInputMouseClick(window, JATGL_MOUSE_BUTTON_LEFT, JATGL_RELEASE);
+    _JATGLInputMouseClick(window, JATGL_MOUSE_BUTTON_LEFT, JATGL_RELEASE);
 }
 
 - (void)mouseMoved:(NSEvent *)event
@@ -312,13 +312,13 @@ static NSUInteger translateKeyToModifierFlag(int key)
     {
         const NSRect contentRect = [window->ns.view frame];
         const NSPoint pos = [event locationInWindow];
-        _glfwInputCursorPos(window, pos.x, contentRect.size.height - pos.y);
+        _JATGLInputCursorPos(window, pos.x, contentRect.size.height - pos.y);
     }
 }
 
 - (void)rightMouseDown:(NSEvent *)event
 {
-    _glfwInputMouseClick(window, JATGL_MOUSE_BUTTON_RIGHT, JATGL_PRESS);
+    _JATGLInputMouseClick(window, JATGL_MOUSE_BUTTON_RIGHT, JATGL_PRESS);
 }
 
 - (void)rightMouseDragged:(NSEvent *)event
@@ -328,12 +328,12 @@ static NSUInteger translateKeyToModifierFlag(int key)
 
 - (void)rightMouseUp:(NSEvent *)event
 {
-    _glfwInputMouseClick(window, JATGL_MOUSE_BUTTON_RIGHT, JATGL_RELEASE);
+    _JATGLInputMouseClick(window, JATGL_MOUSE_BUTTON_RIGHT, JATGL_RELEASE);
 }
 
 - (void)otherMouseDown:(NSEvent *)event
 {
-    _glfwInputMouseClick(window, (int) [event buttonNumber], JATGL_PRESS);
+    _JATGLInputMouseClick(window, (int) [event buttonNumber], JATGL_PRESS);
 }
 
 - (void)otherMouseDragged:(NSEvent *)event
@@ -343,7 +343,7 @@ static NSUInteger translateKeyToModifierFlag(int key)
 
 - (void)otherMouseUp:(NSEvent *)event
 {
-    _glfwInputMouseClick(window, (int) [event buttonNumber], JATGL_RELEASE);
+    _JATGLInputMouseClick(window, (int) [event buttonNumber], JATGL_RELEASE);
 }
 
 - (void)viewDidChangeBackingProperties
@@ -365,7 +365,7 @@ static NSUInteger translateKeyToModifierFlag(int key)
 - (void)keyDown:(NSEvent *)event
 {
     const int key = translateKey([event keyCode]);
-    _glfwInputKey(window, key, [event keyCode], JATGL_PRESS);
+    _JATGLInputKey(window, key, [event keyCode], JATGL_PRESS);
 
     [self interpretKeyEvents:@[event]];
 }
@@ -388,13 +388,13 @@ static NSUInteger translateKeyToModifierFlag(int key)
     else
         action = JATGL_RELEASE;
 
-    _glfwInputKey(window, key, [event keyCode], action);
+    _JATGLInputKey(window, key, [event keyCode], action);
 }
 
 - (void)keyUp:(NSEvent *)event
 {
     const int key = translateKey([event keyCode]);
-    _glfwInputKey(window, key, [event keyCode], JATGL_RELEASE);
+    _JATGLInputKey(window, key, [event keyCode], JATGL_RELEASE);
 }
 
 @end
@@ -430,13 +430,13 @@ static GLFWbool createNativeWindow(_JATGLwindow* window, const _JATGLwindow_conf
     if ([window->ns.object respondsToSelector:@selector(setTabbingMode:)])
         [window->ns.object setTabbingMode:NSWindowTabbingModeDisallowed];
 
-    _glfwPlatformGetWindowSize(window, &window->ns.width, &window->ns.height);
-    _glfwPlatformGetFramebufferSize(window, &window->ns.fbWidth, &window->ns.fbHeight);
+    _JATGLPlatformGetWindowSize(window, &window->ns.width, &window->ns.height);
+    _JATGLPlatformGetFramebufferSize(window, &window->ns.fbWidth, &window->ns.fbHeight);
 
     return JATGL_TRUE;
 }
 
-int _glfwPlatformCreateWindow(_JATGLwindow* window, const _JATGLwindow_config* wndconfig)
+int _JATGLPlatformCreateWindow(_JATGLwindow* window, const _JATGLwindow_config* wndconfig)
 {
     @autoreleasepool {
 
@@ -457,7 +457,7 @@ int _glfwPlatformCreateWindow(_JATGLwindow* window, const _JATGLwindow_config* w
     } // autoreleasepool
 }
 
-void _glfwPlatformDestroyWindow(_JATGLwindow* window)
+void _JATGLPlatformDestroyWindow(_JATGLwindow* window)
 {
     @autoreleasepool {
 
@@ -476,12 +476,12 @@ void _glfwPlatformDestroyWindow(_JATGLwindow* window)
     [window->ns.object close];
     window->ns.object = nil;
 
-    _glfwPlatformPollEvents();
+    _JATGLPlatformPollEvents();
 
     } // autoreleasepool
 }
 
-void _glfwPlatformGetWindowPos(_JATGLwindow* window, int* xpos, int* ypos)
+void _JATGLPlatformGetWindowPos(_JATGLwindow* window, int* xpos, int* ypos)
 {
     @autoreleasepool {
 
@@ -499,7 +499,7 @@ void _glfwPlatformGetWindowPos(_JATGLwindow* window, int* xpos, int* ypos)
     } // autoreleasepool
 }
 
-void _glfwPlatformGetWindowSize(_JATGLwindow* window, int* width, int* height)
+void _JATGLPlatformGetWindowSize(_JATGLwindow* window, int* width, int* height)
 {
     @autoreleasepool {
 
@@ -513,7 +513,7 @@ void _glfwPlatformGetWindowSize(_JATGLwindow* window, int* width, int* height)
     } // autoreleasepool
 }
 
-void _glfwPlatformGetFramebufferSize(_JATGLwindow* window, int* width, int* height)
+void _JATGLPlatformGetFramebufferSize(_JATGLwindow* window, int* width, int* height)
 {
     @autoreleasepool {
 
@@ -528,7 +528,7 @@ void _glfwPlatformGetFramebufferSize(_JATGLwindow* window, int* width, int* heig
     } // autoreleasepool
 }
 
-void _glfwPlatformPollEvents(void)
+void _JATGLPlatformPollEvents(void)
 {
     @autoreleasepool {
 
@@ -547,7 +547,7 @@ void _glfwPlatformPollEvents(void)
     } // autoreleasepool
 }
 
-void _glfwPlatformPostEmptyEvent(void)
+void _JATGLPlatformPostEmptyEvent(void)
 {
     @autoreleasepool {
 
@@ -565,7 +565,7 @@ void _glfwPlatformPostEmptyEvent(void)
     } // autoreleasepool
 }
 
-void _glfwPlatformGetCursorPos(_JATGLwindow* window, double* xpos, double* ypos)
+void _JATGLPlatformGetCursorPos(_JATGLwindow* window, double* xpos, double* ypos)
 {
     @autoreleasepool {
 
@@ -581,20 +581,20 @@ void _glfwPlatformGetCursorPos(_JATGLwindow* window, double* xpos, double* ypos)
     } // autoreleasepool
 }
 
-const char* _glfwPlatformGetScancodeName(int scancode)
+const char* _JATGLPlatformGetScancodeName(int scancode)
 {
     @autoreleasepool {
 
     assert(scancode >= 0 && scancode <= 0xFF);
-    assert(_glfw.ns.keycodes[scancode] != JATGL_KEY_UNKNOWN);
+    assert(_JATGL.ns.keycodes[scancode] != JATGL_KEY_UNKNOWN);
 
-    const int key = _glfw.ns.keycodes[scancode];
+    const int key = _JATGL.ns.keycodes[scancode];
 
     UInt32 deadKeyState = 0;
     UniChar characters[4];
     UniCharCount characterCount = 0;
 
-    if (UCKeyTranslate([(NSData*) _glfw.ns.unicodeData bytes],
+    if (UCKeyTranslate([(NSData*) _JATGL.ns.unicodeData bytes],
                        scancode,
                        kUCKeyActionDisplay,
                        0,
@@ -616,12 +616,12 @@ const char* _glfwPlatformGetScancodeName(int scancode)
                                                             characterCount,
                                                             kCFAllocatorNull);
     CFStringGetCString(string,
-                       _glfw.ns.keynames[key],
-                       sizeof(_glfw.ns.keynames[key]),
+                       _JATGL.ns.keynames[key],
+                       sizeof(_JATGL.ns.keynames[key]),
                        kCFStringEncodingUTF8);
     CFRelease(string);
 
-    return _glfw.ns.keynames[key];
+    return _JATGL.ns.keynames[key];
 
     } // autoreleasepool
 }
@@ -651,7 +651,7 @@ const char* _glfwPlatformGetScancodeName(int scancode)
 {
     _JATGLwindow* window;
 
-    for (window = _glfw.windowListHead;  window;  window = window->next)
+    for (window = _JATGL.windowListHead;  window;  window = window->next)
         window->shouldClose = JATGL_TRUE;
 
     return NSTerminateCancel;
@@ -661,7 +661,7 @@ const char* _glfwPlatformGetScancodeName(int scancode)
 {
     _JATGLwindow* window;
 
-    for (window = _glfw.windowListHead;  window;  window = window->next)
+    for (window = _JATGL.windowListHead;  window;  window = window->next)
     {
             [window->context.object update];
     }
@@ -669,28 +669,28 @@ const char* _glfwPlatformGetScancodeName(int scancode)
 
 - (void)applicationDidFinishLaunching:(NSNotification *)notification
 {
-    _glfwPlatformPostEmptyEvent();
+    _JATGLPlatformPostEmptyEvent();
     [NSApp stop:nil];
 }
 
 @end // GLFWApplicationDelegate
 
-int _glfwPlatformInit(void)
+int _JATGLPlatformInit(void)
 {
     @autoreleasepool {
 
-    _glfw.ns.helper = [[GLFWHelper alloc] init];
+    _JATGL.ns.helper = [[GLFWHelper alloc] init];
 
     [NSThread detachNewThreadSelector:@selector(doNothing:)
-                             toTarget:_glfw.ns.helper
+                             toTarget:_JATGL.ns.helper
                            withObject:nil];
 
     [NSApplication sharedApplication];
 
-    _glfw.ns.delegate = [[GLFWApplicationDelegate alloc] init];
-    assert(_glfw.ns.delegate);
+    _JATGL.ns.delegate = [[GLFWApplicationDelegate alloc] init];
+    assert(_JATGL.ns.delegate);
 
-    [NSApp setDelegate:_glfw.ns.delegate];
+    [NSApp setDelegate:_JATGL.ns.delegate];
 
     NSEvent* (^block)(NSEvent*) = ^ NSEvent* (NSEvent* event)
     {
@@ -700,24 +700,24 @@ int _glfwPlatformInit(void)
         return event;
     };
 
-    _glfw.ns.keyUpMonitor = [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskKeyUp handler:block];
+    _JATGL.ns.keyUpMonitor = [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskKeyUp handler:block];
 
     NSDictionary* defaults = @{@"ApplePressAndHoldEnabled":@NO};
     [[NSUserDefaults standardUserDefaults] registerDefaults:defaults];
 
     [[NSNotificationCenter defaultCenter]
-        addObserver:_glfw.ns.helper
+        addObserver:_JATGL.ns.helper
            selector:@selector(selectedKeyboardInputSourceChanged:)
                name:NSTextInputContextKeyboardSelectionDidChangeNotification
              object:nil];
 
     createKeyTables();
 
-    _glfw.ns.eventSource = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
-    if (!_glfw.ns.eventSource)
+    _JATGL.ns.eventSource = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+    if (!_JATGL.ns.eventSource)
         return JATGL_FALSE;
 
-    CGEventSourceSetLocalEventsSuppressionInterval(_glfw.ns.eventSource, 0.0);
+    CGEventSourceSetLocalEventsSuppressionInterval(_JATGL.ns.eventSource, 0.0);
 
     if (!initializeTIS())
         return JATGL_FALSE;
@@ -732,44 +732,44 @@ int _glfwPlatformInit(void)
     } // autoreleasepool
 }
 
-void _glfwPlatformTerminate(void)
+void _JATGLPlatformTerminate(void)
 {
     @autoreleasepool {
 
-    if (_glfw.ns.inputSource)
+    if (_JATGL.ns.inputSource)
     {
-        CFRelease(_glfw.ns.inputSource);
-        _glfw.ns.inputSource = NULL;
-        _glfw.ns.unicodeData = nil;
+        CFRelease(_JATGL.ns.inputSource);
+        _JATGL.ns.inputSource = NULL;
+        _JATGL.ns.unicodeData = nil;
     }
 
-    if (_glfw.ns.eventSource)
+    if (_JATGL.ns.eventSource)
     {
-        CFRelease(_glfw.ns.eventSource);
-        _glfw.ns.eventSource = NULL;
+        CFRelease(_JATGL.ns.eventSource);
+        _JATGL.ns.eventSource = NULL;
     }
 
-    if (_glfw.ns.delegate)
+    if (_JATGL.ns.delegate)
     {
         [NSApp setDelegate:nil];
-        [_glfw.ns.delegate release];
-        _glfw.ns.delegate = nil;
+        [_JATGL.ns.delegate release];
+        _JATGL.ns.delegate = nil;
     }
 
-    if (_glfw.ns.helper)
+    if (_JATGL.ns.helper)
     {
         [[NSNotificationCenter defaultCenter]
-            removeObserver:_glfw.ns.helper
+            removeObserver:_JATGL.ns.helper
                       name:NSTextInputContextKeyboardSelectionDidChangeNotification
                     object:nil];
         [[NSNotificationCenter defaultCenter]
-            removeObserver:_glfw.ns.helper];
-        [_glfw.ns.helper release];
-        _glfw.ns.helper = nil;
+            removeObserver:_JATGL.ns.helper];
+        [_JATGL.ns.helper release];
+        _JATGL.ns.helper = nil;
     }
 
-    if (_glfw.ns.keyUpMonitor)
-        [NSEvent removeMonitor:_glfw.ns.keyUpMonitor];
+    if (_JATGL.ns.keyUpMonitor)
+        [NSEvent removeMonitor:_JATGL.ns.keyUpMonitor];
 
     } // autoreleasepool
 }
