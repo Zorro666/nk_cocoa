@@ -1,34 +1,13 @@
-#pragma once
+#ifndef __JAKE_GL_INTERNAL_H
+#define __JAKE_GL_INTERNAL_H
 
 #include "jake_gl.h"
 
 #include <Carbon/Carbon.h>
 
-typedef int GLFWbool;
-
-typedef struct _JATGLwindow_config   _JATGLwindow_config;
-typedef struct _JATGLcontext     _JATGLcontext;
 typedef struct _JATGLwindow      _JATGLwindow;
 typedef struct _JATGLmodule     _JATGLmodule;
 typedef struct _JATGL_TLS         _JATGL_TLS;
-
-typedef void (* _GLFWmakecontextcurrentfun)(_JATGLwindow*);
-typedef void (* _GLFWswapbuffersfun)(_JATGLwindow*);
-typedef JATGLglproc (* _GLFWgetprocaddressfun)(const char*);
-typedef void (* _GLFWdestroycontextfun)(_JATGLwindow*);
-
-#define GL_COLOR_BUFFER_BIT 0x00004000
-
-typedef int GLint;
-typedef unsigned int GLuint;
-typedef unsigned int GLenum;
-typedef unsigned int GLbitfield;
-typedef unsigned char GLubyte;
-
-typedef void (* PFNGLCLEARPROC)(GLbitfield);
-typedef const GLubyte* (* PFNGLGETSTRINGPROC)(GLenum);
-typedef void (* PFNGLGETINTEGERVPROC)(GLenum,GLint*);
-typedef const GLubyte* (* PFNGLGETSTRINGIPROC)(GLenum,GLuint);
 
 #ifndef GL_SILENCE_DEPRECATION
 #define GL_SILENCE_DEPRECATION
@@ -79,85 +58,56 @@ typedef struct _JATGLmoduleNS
 
 } _JATGLmoduleNS;
 
-struct _JATGLwindow_config
-{
-    int           width;
-    int           height;
-    const char*   title;
-};
-
-struct _JATGLcontext
-{
-    PFNGLGETSTRINGIPROC  GetStringi;
-    PFNGLGETINTEGERVPROC GetIntegerv;
-    PFNGLGETSTRINGPROC   GetString;
-
-    _GLFWmakecontextcurrentfun  makeCurrent;
-    _GLFWswapbuffersfun         swapBuffers;
-    _GLFWgetprocaddressfun      getProcAddress;
-    _GLFWdestroycontextfun      destroy;
-
-    id                pixelFormat;
-    id                object;
-};
-
 struct _JATGLwindow
 {
-    struct _JATGLwindow* next;
-
-    GLFWbool            shouldClose;
-
-    char                mouseButtons[3];
-    char                keys[JATGL_KEY_LAST + 1];
-    double              virtualCursorPosX, virtualCursorPosY;
-
-    _JATGLcontext        context;
-
-    struct {
-        JATGLmouse_button_function        mouseButton;
-        JATGLcharacter_function               character;
-    } callbacks;
-
+    _JATGLwindow* next;
+    id pixelFormat;
+    id object;
     _JATGLwindowNS  ns;
+    double virtualCursorPosX, virtualCursorPosY;
+
+    int shouldClose;
+    char mouseButtons[3];
+    char keys[JATGL_KEY_LAST + 1];
+
+    JATGLMouseButtonCallback mouseButtonCallback;
+    JATGLCharacterCallback characterCallback;
 };
 
 struct _JATGL_TLS
 {
-    GLFWbool        allocated;
-    pthread_key_t   key;
+    pthread_key_t key;
+    int allocated;
 };
 
 struct _JATGLmodule
 {
-    GLFWbool            initialized;
-    _JATGLwindow*        windowListHead;
-    _JATGL_TLS            contextSlot;
-
-    struct {
-        uint64_t        offset;
-        uint64_t        frequency;
-    } timer;
-
+    _JATGL_TLS threadContext;
+    _JATGLwindow* windowListHead;
     _JATGLmoduleNS ns;
-    CFBundleRef     framework;
+    CFBundleRef framework;
+    int initialized;
 };
 
 extern _JATGLmodule _JATGL;
 
-int _JATGLPlatformInit(void);
-void _JATGLPlatformTerminate(void);
-void _JATGLPlatformGetCursorPos(_JATGLwindow* window, double* xpos, double* ypos);
+int _JATGLInit(void);
+void _JATGLTerminate(void);
+void _JATGLGetMousePosition(_JATGLwindow* window, double* xpos, double* ypos);
 const char* _JATGLPlatformGetScancodeName(int scancode);
 
-int _JATGLPlatformCreateWindow(_JATGLwindow* window, const _JATGLwindow_config* wndconfig);
-void _JATGLPlatformDestroyWindow(_JATGLwindow* window);
+int _JATGLNewWindow(_JATGLwindow* window, int width, int height, const char* title); void _JATGLPlatformDestroyWindow(_JATGLwindow* window);
 void _JATGLPlatformGetWindowSize(_JATGLwindow* window, int* width, int* height);
 void _JATGLPlatformGetFramebufferSize(_JATGLwindow* window, int* width, int* height);
+void _JATGLMakeContextCurrent(_JATGLwindow* window);
+void _JATGLSwapBuffers(_JATGLwindow* window);
+void* _JATGL_GetGLFunctionAddress(const char* functionName);
 
 void _JATGLPlatformPollEvents(void);
 
 void _JATGLInputKey(_JATGLwindow* window, int key, int scancode, int action);
-void _JATGLInputChar(_JATGLwindow* window, unsigned int codepoint, int mods, GLFWbool plain);
+void _JATGLInputChar(_JATGLwindow* window, unsigned int codepoint, int mods, int plain);
 void _JATGLInputMouseClick(_JATGLwindow* window, int button, int action);
 void _JATGLInputCursorPos(_JATGLwindow* window, double xpos, double ypos);
 
+#endif // #ifndef __JAKE_GL_INTERNAL_H

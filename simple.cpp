@@ -59,8 +59,6 @@ int main(void)
         exit(EXIT_FAILURE);
     }
 
-    JATGL_MakeContextCurrent(window);
-
     GLuint vertex_buffer;
     glGenBuffers(1, &vertex_buffer);
     glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);

@@ -13,21 +13,7 @@ static void SetTLS(_JATGL_TLS* tls, void* value)
     pthread_setspecific(tls->key, value);
 }
 
-static void MakeContextCurrentNSGL(_JATGLwindow* window)
-{
-    @autoreleasepool {
-
-    if (window)
-        [window->context.object makeCurrentContext];
-    else
-        [NSOpenGLContext clearCurrentContext];
-
-    SetTLS(&_JATGL.contextSlot, window);
-
-    } // autoreleasepool
-}
-
-static GLFWbool InitNSGL(void)
+static int InitNSGL(void)
 {
     if (_JATGL.framework)
         return JATGL_TRUE;
@@ -37,37 +23,20 @@ static GLFWbool InitNSGL(void)
     return JATGL_TRUE;
 }
 
-static void SwapBuffersNSGL(_JATGLwindow* window)
+void _JATGLDestroyContext(_JATGLwindow* window)
 {
     @autoreleasepool {
 
-    [window->context.object flushBuffer];
+    [window->pixelFormat release];
+    window->pixelFormat = nil;
+
+    [window->object release];
+    window->object = nil;
 
     } // autoreleasepool
 }
 
-static JATGLglproc GetProcAddressNSGL(const char* procname)
-{
-    CFStringRef symbolName = CFStringCreateWithCString(kCFAllocatorDefault, procname, kCFStringEncodingASCII);
-    JATGLglproc symbol = CFBundleGetFunctionPointerForName(_JATGL.framework, symbolName);
-    CFRelease(symbolName);
-    return symbol;
-}
-
-static void DestroyContextNSGL(_JATGLwindow* window)
-{
-    @autoreleasepool {
-
-    [window->context.pixelFormat release];
-    window->context.pixelFormat = nil;
-
-    [window->context.object release];
-    window->context.object = nil;
-
-    } // autoreleasepool
-}
-
-static GLFWbool CreateContextNSGL(_JATGLwindow* window)
+static int CreateContextNSGL(_JATGLwindow* window)
 {
 #define addAttrib(a) \
 { \
@@ -96,24 +65,16 @@ static GLFWbool CreateContextNSGL(_JATGLwindow* window)
 #undef addAttrib
 #undef setAttrib
 
-    window->context.pixelFormat = [[NSOpenGLPixelFormat alloc] initWithAttributes:attribs];
-    assert(window->context.pixelFormat);
+    window->pixelFormat = [[NSOpenGLPixelFormat alloc] initWithAttributes:attribs];
+    assert(window->pixelFormat);
 
     NSOpenGLContext* share = nil;
 
-    window->context.object = [[NSOpenGLContext alloc] initWithFormat:window->context.pixelFormat
-                                   shareContext:share];
-    assert(window->context.object);
+    window->object = [[NSOpenGLContext alloc] initWithFormat:window->pixelFormat shareContext:share];
+    assert(window->object);
 
     [window->ns.view setWantsBestResolutionOpenGLSurface:true];
-
-    [window->context.object setView:window->ns.view];
-
-    window->context.makeCurrent = MakeContextCurrentNSGL;
-    window->context.swapBuffers = SwapBuffersNSGL;
-    window->context.getProcAddress = GetProcAddressNSGL;
-    window->context.destroy = DestroyContextNSGL;
-
+    [window->object setView:window->ns.view];
     return JATGL_TRUE;
 }
 
@@ -153,7 +114,7 @@ static void createKeyTables(void)
     }
 }
 
-static GLFWbool updateUnicodeDataNS(void)
+static int updateUnicodeDataNS(void)
 {
     if (_JATGL.ns.inputSource)
     {
@@ -170,7 +131,7 @@ static GLFWbool updateUnicodeDataNS(void)
     return JATGL_TRUE;
 }
 
-static GLFWbool initializeTIS(void)
+static int initializeTIS(void)
 {
     // This works only because Cocoa has already loaded it properly
     _JATGL.ns.tis.bundle = CFBundleGetBundleWithIdentifier(CFSTR("com.apple.HIToolbox"));
@@ -215,6 +176,37 @@ static NSUInteger translateKeyToModifierFlag(int key)
     return 0;
 }
 
+void _JATGLSwapBuffers(_JATGLwindow* window)
+{
+    @autoreleasepool {
+
+    [window->object flushBuffer];
+
+    } // autoreleasepool
+}
+
+void _JATGLMakeContextCurrent(_JATGLwindow* window)
+{
+    @autoreleasepool {
+
+    if (window)
+        [window->object makeCurrentContext];
+    else
+        [NSOpenGLContext clearCurrentContext];
+
+    SetTLS(&_JATGL.threadContext, window);
+
+    } // autoreleasepool
+}
+
+void* _JATGL_GetGLFunctionAddress(const char* procname)
+{
+    CFStringRef symbolName = CFStringCreateWithCString(kCFAllocatorDefault, procname, kCFStringEncodingASCII);
+    void* symbol = CFBundleGetFunctionPointerForName(_JATGL.framework, symbolName);
+    CFRelease(symbolName);
+    return symbol;
+}
+
 @interface GLFWWindowDelegate : NSObject
 {
     _JATGLwindow* window;
@@ -243,7 +235,7 @@ static NSUInteger translateKeyToModifierFlag(int key)
 
 - (void)windowDidResize:(NSNotification *)notification
 {
-    [window->context.object update];
+    [window->object update];
 
     const NSRect contentRect = [window->ns.view frame];
     const NSRect fbRect = [window->ns.view convertRectToBacking:contentRect];
@@ -289,7 +281,7 @@ static NSUInteger translateKeyToModifierFlag(int key)
 
 - (void)updateLayer
 {
-    [window->context.object update];
+    [window->object update];
 }
 
 - (void)mouseDown:(NSEvent *)event
@@ -399,14 +391,14 @@ static NSUInteger translateKeyToModifierFlag(int key)
 
 @end
 
-static GLFWbool createNativeWindow(_JATGLwindow* window, const _JATGLwindow_config* wndconfig)
+static int CreateNativeWindow(_JATGLwindow* window, int width, int height, const char* title)
 {
     window->ns.delegate = [[GLFWWindowDelegate alloc] initWithGlfwWindow:window];
     assert(window->ns.delegate);
 
     NSRect contentRect;
 
-    contentRect = NSMakeRect(0, 0, wndconfig->width, wndconfig->height);
+    contentRect = NSMakeRect(0, 0, width, height);
 
     window->ns.object = [[NSWindow alloc]
         initWithContentRect:contentRect
@@ -422,7 +414,7 @@ static GLFWbool createNativeWindow(_JATGLwindow* window, const _JATGLwindow_conf
 
     [window->ns.object setContentView:window->ns.view];
     [window->ns.object makeFirstResponder:window->ns.view];
-    [window->ns.object setTitle:@(wndconfig->title)];
+    [window->ns.object setTitle:@(title)];
     [window->ns.object setDelegate:window->ns.delegate];
     [window->ns.object setAcceptsMouseMovedEvents:YES];
     [window->ns.object setRestorable:NO];
@@ -436,11 +428,11 @@ static GLFWbool createNativeWindow(_JATGLwindow* window, const _JATGLwindow_conf
     return JATGL_TRUE;
 }
 
-int _JATGLPlatformCreateWindow(_JATGLwindow* window, const _JATGLwindow_config* wndconfig)
+int _JATGLNewWindow(_JATGLwindow* window, int width, int height, const char* title)
 {
     @autoreleasepool {
 
-    if (!createNativeWindow(window, wndconfig))
+    if (!CreateNativeWindow(window, width, height, title))
         return JATGL_FALSE;
 
             if (!InitNSGL())
@@ -452,6 +444,7 @@ int _JATGLPlatformCreateWindow(_JATGLwindow* window, const _JATGLwindow_config* 
     [NSApp activateIgnoringOtherApps:YES];
     [window->ns.object makeKeyAndOrderFront:nil];
 
+    _JATGLMakeContextCurrent(window);
     return JATGL_TRUE;
 
     } // autoreleasepool
@@ -462,9 +455,7 @@ void _JATGLPlatformDestroyWindow(_JATGLwindow* window)
     @autoreleasepool {
 
     [window->ns.object orderOut:nil];
-
-    if (window->context.destroy)
-        window->context.destroy(window);
+    _JATGLDestroyContext(window);
 
     [window->ns.object setDelegate:nil];
     [window->ns.delegate release];
@@ -565,7 +556,7 @@ void _JATGLPlatformPostEmptyEvent(void)
     } // autoreleasepool
 }
 
-void _JATGLPlatformGetCursorPos(_JATGLwindow* window, double* xpos, double* ypos)
+void _JATGLGetMousePosition(_JATGLwindow* window, double* xpos, double* ypos)
 {
     @autoreleasepool {
 
@@ -659,12 +650,8 @@ const char* _JATGLPlatformGetScancodeName(int scancode)
 
 - (void)applicationDidChangeScreenParameters:(NSNotification *) notification
 {
-    _JATGLwindow* window;
-
-    for (window = _JATGL.windowListHead;  window;  window = window->next)
-    {
-            [window->context.object update];
-    }
+    for (_JATGLwindow* window = _JATGL.windowListHead; window; window = window->next)
+        [window->object update];
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)notification
@@ -675,15 +662,15 @@ const char* _JATGLPlatformGetScancodeName(int scancode)
 
 @end // GLFWApplicationDelegate
 
-int _JATGLPlatformInit(void)
+int _JATGLInit(void)
 {
     @autoreleasepool {
 
     _JATGL.ns.helper = [[GLFWHelper alloc] init];
 
     [NSThread detachNewThreadSelector:@selector(doNothing:)
-                             toTarget:_JATGL.ns.helper
-                           withObject:nil];
+        toTarget:_JATGL.ns.helper
+        withObject:nil];
 
     [NSApplication sharedApplication];
 
@@ -707,9 +694,9 @@ int _JATGLPlatformInit(void)
 
     [[NSNotificationCenter defaultCenter]
         addObserver:_JATGL.ns.helper
-           selector:@selector(selectedKeyboardInputSourceChanged:)
-               name:NSTextInputContextKeyboardSelectionDidChangeNotification
-             object:nil];
+        selector:@selector(selectedKeyboardInputSourceChanged:)
+        name:NSTextInputContextKeyboardSelectionDidChangeNotification
+        object:nil];
 
     createKeyTables();
 
@@ -732,7 +719,7 @@ int _JATGLPlatformInit(void)
     } // autoreleasepool
 }
 
-void _JATGLPlatformTerminate(void)
+void _JATGLTerminate(void)
 {
     @autoreleasepool {
 
@@ -760,8 +747,8 @@ void _JATGLPlatformTerminate(void)
     {
         [[NSNotificationCenter defaultCenter]
             removeObserver:_JATGL.ns.helper
-                      name:NSTextInputContextKeyboardSelectionDidChangeNotification
-                    object:nil];
+            name:NSTextInputContextKeyboardSelectionDidChangeNotification
+            object:nil];
         [[NSNotificationCenter defaultCenter]
             removeObserver:_JATGL.ns.helper];
         [_JATGL.ns.helper release];

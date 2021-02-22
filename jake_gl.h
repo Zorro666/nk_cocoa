@@ -1,5 +1,5 @@
-#ifndef JAKE_GL_H
-#define JAKE_GL_H
+#ifndef __JAKE_GL_H
+#define __JAKE_GL_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -45,27 +45,24 @@ extern "C" {
 #define JATGL_MOUSE_BUTTON_RIGHT     1
 #define JATGL_MOUSE_BUTTON_MIDDLE    2
 
-typedef void (*JATGLglproc)(void);
 typedef struct JATGLwindow JATGLwindow;
-typedef void (*JATGLmouse_button_function)(JATGLwindow*,int,int,int);
-typedef void (*JATGLcharacter_function)(JATGLwindow*,unsigned int);
+typedef void (*JATGLMouseButtonCallback)(JATGLwindow*,int,int,int);
+typedef void (*JATGLCharacterCallback)(JATGLwindow*,unsigned int);
 
-void JATGL_MakeContextCurrent(JATGLwindow* window);
-void JATGL_DeleteWindow(JATGLwindow* window);
 int JATGL_Initialize(void);
-JATGLwindow* JATGL_NewWindow(int width, int height, const char* title);
 void JATGL_Shutdown(void);
-JATGLglproc JATGL_GetGLProcAddress(const char* procname);
-int JATGL_WindowShouldClose(JATGLwindow* window);
 void JATGL_GetFrameBufferSize(JATGLwindow* window, int* width, int* height);
+JATGLwindow* JATGL_NewWindow(int width, int height, const char* title);
+void JATGL_DeleteWindow(JATGLwindow* window);
+int JATGL_WindowShouldClose(JATGLwindow* window);
+void JATGL_GetWindowSize(JATGLwindow* window, int* width, int* height);
 void JATGL_SwapBuffers(JATGLwindow* window);
 void JATGL_Poll(void);
 
 void JATGL_GetMousePosition(JATGLwindow* handle, double* xpos, double* ypos);
 double JATGL_GetTime(void);
-JATGLcharacter_function JATGL_SetCharacterCallback(JATGLwindow* window, JATGLcharacter_function callback);
-JATGLmouse_button_function JATGL_SetMouseButtonCallback(JATGLwindow* window, JATGLmouse_button_function callback);
-void JATGL_GetWindowSize(JATGLwindow* window, int* width, int* height);
+void JATGL_SetCharacterCallback(JATGLwindow* window, JATGLCharacterCallback callback);
+void JATGL_SetMouseButtonCallback(JATGLwindow* window, JATGLMouseButtonCallback callback);
 int JATGL_GetKeyState(JATGLwindow* window, int key);
 int JATGL_GetMouseButtonState(JATGLwindow* window, int button);
 
@@ -73,4 +70,4 @@ int JATGL_GetMouseButtonState(JATGLwindow* window, int button);
 }
 #endif
 
-#endif // #ifndef JAKE_GL_H
+#endif // #ifndef __JAKE_GL_H
