@@ -10,27 +10,20 @@ typedef void* (*PFN_TISGetInputSourceProperty)(TISInputSourceRef,CFStringRef);
 typedef UInt8 (*PFN_LMGetKbdType)(void);
 
 #define kTISPropertyUnicodeKeyLayoutData _JATGL.ns.tis.kPropertyUnicodeKeyLayoutData
-#define TISCopyCurrentKeyboardLayoutInputSource _JATGL.ns.tis.CopyCurrentKeyboardLayoutInputSource
-#define TISGetInputSourceProperty _JATGL.ns.tis.GetInputSourceProperty
 #define LMGetKbdType _JATGL.ns.tis.GetKbdType
-
-typedef struct _JATGLwindowNS
-{
-    id              object;
-    id              delegate;
-    id              view;
-    id              layer;
-
-    int             width, height;
-    int             fbWidth, fbHeight;
-} _JATGLwindowNS;
 
 typedef struct _JATGLwindow
 {
     struct _JATGLwindow* next;
     id pixelFormat;
     id object;
-    _JATGLwindowNS  ns;
+    id nsobject;
+    id delegate;
+    id view;
+    id layer;
+    int width, height;
+    int fbWidth, fbHeight;
+
     double virtualCursorPosX, virtualCursorPosY;
 
     int shouldClose;
@@ -51,24 +44,17 @@ typedef struct _JATGLmoduleNS
 {
     CGEventSourceRef    eventSource;
     id                  delegate;
-    TISInputSourceRef   inputSource;
-    id                  unicodeData;
     id                  helper;
     id                  keyUpMonitor;
-    id                  nibObjects;
 
-    char                keynames[JATGL_KEY_LAST + 1][17];
     short int           keycodes[256];
-    short int           scancodes[JATGL_KEY_LAST + 1];
 
     struct {
         CFBundleRef     bundle;
         PFN_TISCopyCurrentKeyboardLayoutInputSource CopyCurrentKeyboardLayoutInputSource;
-        PFN_TISGetInputSourceProperty GetInputSourceProperty;
         PFN_LMGetKbdType GetKbdType;
         CFStringRef     kPropertyUnicodeKeyLayoutData;
     } tis;
-
 } _JATGLmoduleNS;
 
 typedef struct JATGLmodule
@@ -83,35 +69,6 @@ typedef struct JATGLmodule
 static uint64_t s_timer_frequency;
 static JATGLmodule _JATGL = { JATGL_FALSE };
 
-static int CreateTLS(JATGL_TLS* tls)
-{
-    assert(tls->allocated == JATGL_FALSE);
-
-    int result = pthread_key_create(&tls->key, NULL);
-    assert(result == 0);
-    tls->allocated = JATGL_TRUE;
-    return JATGL_TRUE;
-}
-
-static void DestroyTLS(JATGL_TLS* tls)
-{
-    if (tls->allocated)
-        pthread_key_delete(tls->key);
-    memset(tls, 0, sizeof(JATGL_TLS));
-}
-
-static void SetTLS(JATGL_TLS* tls, void* value)
-{
-    assert(tls->allocated == JATGL_TRUE);
-    pthread_setspecific(tls->key, value);
-}
-
-static void* GetTLS(JATGL_TLS* tls)
-{
-    assert(tls->allocated == JATGL_TRUE);
-    return pthread_getspecific(tls->key);
-}
-
 static int InitNSGL(void)
 {
     if (_JATGL.framework)
@@ -120,18 +77,6 @@ static int InitNSGL(void)
     _JATGL.framework = CFBundleGetBundleWithIdentifier(CFSTR("com.apple.opengl"));
     assert(_JATGL.framework);
     return JATGL_TRUE;
-}
-
-void _JATGLDestroyContext(_JATGLwindow* window)
-{
-    @autoreleasepool
-    {
-        [window->pixelFormat release];
-        window->pixelFormat = nil;
-
-        [window->object release];
-        window->object = nil;
-    }
 }
 
 static int CreateContextNSGL(_JATGLwindow* window)
@@ -171,17 +116,16 @@ static int CreateContextNSGL(_JATGLwindow* window)
     window->object = [[NSOpenGLContext alloc] initWithFormat:window->pixelFormat shareContext:share];
     assert(window->object);
 
-    [window->ns.view setWantsBestResolutionOpenGLSurface:true];
-    [window->object setView:window->ns.view];
+    [window->view setWantsBestResolutionOpenGLSurface:true];
+    [window->object setView:window->view];
     return JATGL_TRUE;
 }
 
-static void createKeyTables(void)
+static void CreateKeyTables(void)
 {
     int scancode;
 
     memset(_JATGL.ns.keycodes, -1, sizeof(_JATGL.ns.keycodes));
-    memset(_JATGL.ns.scancodes, -1, sizeof(_JATGL.ns.scancodes));
 
     _JATGL.ns.keycodes[0x0B] = JATGL_KEY_B;
     _JATGL.ns.keycodes[0x08] = JATGL_KEY_C;
@@ -203,51 +147,23 @@ static void createKeyTables(void)
     _JATGL.ns.keycodes[0x7C] = JATGL_KEY_RIGHT;
     _JATGL.ns.keycodes[0x30] = JATGL_KEY_TAB;
     _JATGL.ns.keycodes[0x7E] = JATGL_KEY_UP;
-
-    for (scancode = 0;  scancode < 256;  scancode++)
-    {
-        // Store the reverse translation for faster key name lookup
-        if (_JATGL.ns.keycodes[scancode] >= 0)
-            _JATGL.ns.scancodes[_JATGL.ns.keycodes[scancode]] = scancode;
-    }
 }
 
-static int updateUnicodeDataNS(void)
-{
-    if (_JATGL.ns.inputSource)
-    {
-        CFRelease(_JATGL.ns.inputSource);
-        _JATGL.ns.inputSource = NULL;
-        _JATGL.ns.unicodeData = nil;
-    }
-
-    _JATGL.ns.inputSource = TISCopyCurrentKeyboardLayoutInputSource();
-    assert(_JATGL.ns.inputSource);
-
-    _JATGL.ns.unicodeData = TISGetInputSourceProperty(_JATGL.ns.inputSource, kTISPropertyUnicodeKeyLayoutData);
-    assert(_JATGL.ns.unicodeData);
-    return JATGL_TRUE;
-}
-
-static int initializeTIS(void)
+static void InitializeTIS(void)
 {
     // This works only because Cocoa has already loaded it properly
     _JATGL.ns.tis.bundle = CFBundleGetBundleWithIdentifier(CFSTR("com.apple.HIToolbox"));
     assert(_JATGL.ns.tis.bundle);
 
     CFStringRef* kPropertyUnicodeKeyLayoutData = CFBundleGetDataPointerForName(_JATGL.ns.tis.bundle, CFSTR("kTISPropertyUnicodeKeyLayoutData"));
-    _JATGL.ns.tis.CopyCurrentKeyboardLayoutInputSource = CFBundleGetFunctionPointerForName(_JATGL.ns.tis.bundle, CFSTR("TISCopyCurrentKeyboardLayoutInputSource"));
-    _JATGL.ns.tis.GetInputSourceProperty = CFBundleGetFunctionPointerForName(_JATGL.ns.tis.bundle, CFSTR("TISGetInputSourceProperty"));
     _JATGL.ns.tis.GetKbdType = CFBundleGetFunctionPointerForName(_JATGL.ns.tis.bundle, CFSTR("LMGetKbdType"));
 
-    if (!kPropertyUnicodeKeyLayoutData || !TISCopyCurrentKeyboardLayoutInputSource || !TISGetInputSourceProperty || !LMGetKbdType)
+    if (!kPropertyUnicodeKeyLayoutData || !LMGetKbdType)
     {
         assert(false);
     }
 
     _JATGL.ns.tis.kPropertyUnicodeKeyLayoutData = *kPropertyUnicodeKeyLayoutData;
-
-    return updateUnicodeDataNS();
 }
 
 // Translate a macOS keycode
@@ -319,7 +235,8 @@ void _JATGLMakeContextCurrent(_JATGLwindow* window)
         else
             [NSOpenGLContext clearCurrentContext];
 
-        SetTLS(&_JATGL.threadContext, window);
+        assert(_JATGL.threadContext.allocated == JATGL_TRUE);
+        pthread_setspecific(_JATGL.threadContext.key, window);
     }
 }
 
@@ -331,7 +248,7 @@ void* _JATGL_GetGLFunctionAddress(const char* procname)
     return symbol;
 }
 
-@interface GLFWWindowDelegate : NSObject
+@interface JATGL_WindowDelegate : NSObject
 {
     _JATGLwindow* window;
 }
@@ -340,7 +257,7 @@ void* _JATGL_GetGLFunctionAddress(const char* procname)
 
 @end
 
-@implementation GLFWWindowDelegate
+@implementation JATGL_WindowDelegate
 
 - (instancetype)initWithGlfwWindow:(_JATGLwindow *)initWindow
 {
@@ -361,27 +278,26 @@ void* _JATGL_GetGLFunctionAddress(const char* procname)
 {
     [window->object update];
 
-    const NSRect contentRect = [window->ns.view frame];
-    const NSRect fbRect = [window->ns.view convertRectToBacking:contentRect];
+    const NSRect contentRect = [window->view frame];
+    const NSRect fbRect = [window->view convertRectToBacking:contentRect];
 
-    if (fbRect.size.width != window->ns.fbWidth ||
-        fbRect.size.height != window->ns.fbHeight)
+    if (fbRect.size.width != window->fbWidth ||
+        fbRect.size.height != window->fbHeight)
     {
-        window->ns.fbWidth  = fbRect.size.width;
-        window->ns.fbHeight = fbRect.size.height;
+        window->fbWidth  = fbRect.size.width;
+        window->fbHeight = fbRect.size.height;
     }
 
-    if (contentRect.size.width != window->ns.width ||
-        contentRect.size.height != window->ns.height)
+    if (contentRect.size.width != window->width ||
+        contentRect.size.height != window->height)
     {
-        window->ns.width  = contentRect.size.width;
-        window->ns.height = contentRect.size.height;
+        window->width  = contentRect.size.width;
+        window->height = contentRect.size.height;
     }
 }
-
 @end
 
-@interface GLFWContentView : NSView 
+@interface JATGL_ContentView : NSView 
 {
     _JATGLwindow* window;
 }
@@ -390,7 +306,7 @@ void* _JATGL_GetGLFunctionAddress(const char* procname)
 
 @end
 
-@implementation GLFWContentView
+@implementation JATGL_ContentView
 
 - (instancetype)initWithGlfwWindow:(_JATGLwindow *)initWindow
 {
@@ -425,7 +341,7 @@ void* _JATGL_GetGLFunctionAddress(const char* procname)
 
 - (void)mouseMoved:(NSEvent *)event
 {
-    const NSRect contentRect = [window->ns.view frame];
+    const NSRect contentRect = [window->view frame];
     const NSPoint pos = [event locationInWindow];
     window->virtualCursorPosX = pos.x;
     window->virtualCursorPosY = contentRect.size.height - pos.y;
@@ -463,18 +379,18 @@ void* _JATGL_GetGLFunctionAddress(const char* procname)
 
 - (void)viewDidChangeBackingProperties
 {
-    const NSRect contentRect = [window->ns.view frame];
-    const NSRect fbRect = [window->ns.view convertRectToBacking:contentRect];
+    const NSRect contentRect = [window->view frame];
+    const NSRect fbRect = [window->view convertRectToBacking:contentRect];
 
-    if (fbRect.size.width != window->ns.fbWidth ||
-        fbRect.size.height != window->ns.fbHeight)
+    if (fbRect.size.width != window->fbWidth ||
+        fbRect.size.height != window->fbHeight)
     {
-        window->ns.fbWidth  = fbRect.size.width;
-        window->ns.fbHeight = fbRect.size.height;
+        window->fbWidth  = fbRect.size.width;
+        window->fbHeight = fbRect.size.height;
     }
 
-    if (window->ns.layer)
-        [window->ns.layer setContentsScale:[window->ns.object backingScaleFactor]];
+    if (window->layer)
+        [window->layer setContentsScale:[window->nsobject backingScaleFactor]];
 }
 
 - (void)keyDown:(NSEvent *)event
@@ -515,37 +431,37 @@ void* _JATGL_GetGLFunctionAddress(const char* procname)
 
 static int CreateNativeWindow(_JATGLwindow* window, int width, int height, const char* title)
 {
-    window->ns.delegate = [[GLFWWindowDelegate alloc] initWithGlfwWindow:window];
-    assert(window->ns.delegate);
+    window->delegate = [[JATGL_WindowDelegate alloc] initWithGlfwWindow:window];
+    assert(window->delegate);
 
     NSRect contentRect;
 
     contentRect = NSMakeRect(0, 0, width, height);
 
-    window->ns.object = [[NSWindow alloc]
+    window->nsobject = [[NSWindow alloc]
         initWithContentRect:contentRect
         styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable
         backing:NSBackingStoreBuffered
         defer:NO];
 
-    assert(window->ns.object);
+    assert(window->nsobject);
 
-    [(NSWindow*) window->ns.object center];
+    [(NSWindow*) window->nsobject center];
 
-    window->ns.view = [[GLFWContentView alloc] initWithGlfwWindow:window];
+    window->view = [[JATGL_ContentView alloc] initWithGlfwWindow:window];
 
-    [window->ns.object setContentView:window->ns.view];
-    [window->ns.object makeFirstResponder:window->ns.view];
-    [window->ns.object setTitle:@(title)];
-    [window->ns.object setDelegate:window->ns.delegate];
-    [window->ns.object setAcceptsMouseMovedEvents:YES];
-    [window->ns.object setRestorable:NO];
+    [window->nsobject setContentView:window->view];
+    [window->nsobject makeFirstResponder:window->view];
+    [window->nsobject setTitle:@(title)];
+    [window->nsobject setDelegate:window->delegate];
+    [window->nsobject setAcceptsMouseMovedEvents:YES];
+    [window->nsobject setRestorable:NO];
 
-    if ([window->ns.object respondsToSelector:@selector(setTabbingMode:)])
-        [window->ns.object setTabbingMode:NSWindowTabbingModeDisallowed];
+    if ([window->nsobject respondsToSelector:@selector(setTabbingMode:)])
+        [window->nsobject setTabbingMode:NSWindowTabbingModeDisallowed];
 
-    JATGL_GetWindowSize((JATGLwindow*)window, &window->ns.width, &window->ns.height);
-    JATGL_GetFrameBufferSize((JATGLwindow*)window, &window->ns.fbWidth, &window->ns.fbHeight);
+    JATGL_GetWindowSize((JATGLwindow*)window, &window->width, &window->height);
+    JATGL_GetFrameBufferSize((JATGLwindow*)window, &window->fbWidth, &window->fbHeight);
 
     return JATGL_TRUE;
 }
@@ -557,13 +473,6 @@ static void Shutdown(void)
 
     @autoreleasepool
     {
-        if (_JATGL.ns.inputSource)
-        {
-            CFRelease(_JATGL.ns.inputSource);
-            _JATGL.ns.inputSource = NULL;
-            _JATGL.ns.unicodeData = nil;
-        }
-
         if (_JATGL.ns.eventSource)
         {
             CFRelease(_JATGL.ns.eventSource);
@@ -594,7 +503,12 @@ static void Shutdown(void)
     }
 
     _JATGL.initialized = JATGL_FALSE;
-    DestroyTLS(&_JATGL.threadContext);
+
+    if (_JATGL.threadContext.allocated)
+        pthread_key_delete(_JATGL.threadContext.key);
+    _JATGL.threadContext.allocated = 0;
+    _JATGL.threadContext.key = 0;
+
     memset(&_JATGL, 0, sizeof(_JATGL));
 }
 
@@ -610,50 +524,12 @@ int _JATGLNewWindow(_JATGLwindow* window, int width, int height, const char* tit
         if (!CreateContextNSGL(window))
             return JATGL_FALSE;
 
-        [window->ns.object orderFront:nil];
+        [window->nsobject orderFront:nil];
         [NSApp activateIgnoringOtherApps:YES];
-        [window->ns.object makeKeyAndOrderFront:nil];
+        [window->nsobject makeKeyAndOrderFront:nil];
 
         _JATGLMakeContextCurrent(window);
         return JATGL_TRUE;
-    }
-}
-
-void _JATGLPlatformDestroyWindow(_JATGLwindow* window)
-{
-    @autoreleasepool
-    {
-        [window->ns.object orderOut:nil];
-        _JATGLDestroyContext(window);
-
-        [window->ns.object setDelegate:nil];
-        [window->ns.delegate release];
-        window->ns.delegate = nil;
-
-        [window->ns.view release];
-        window->ns.view = nil;
-
-        [window->ns.object close];
-        window->ns.object = nil;
-
-        JATGL_Poll();
-    }
-}
-
-void _JATGLPlatformGetWindowPos(_JATGLwindow* window, int* xpos, int* ypos)
-{
-    @autoreleasepool
-    {
-        const NSRect contentRect =
-        [window->ns.object contentRectForFrameRect:[window->ns.object frame]];
-
-        if (xpos)
-            *xpos = contentRect.origin.x;
-        if (ypos)
-        {
-            int y = contentRect.origin.y + contentRect.size.height - 1;
-            *ypos = CGDisplayBounds(CGMainDisplayID()).size.height - y - 1;
-        }
     }
 }
 
@@ -663,7 +539,7 @@ void JATGL_GetWindowSize(JATGLwindow* handle, int* width, int* height)
     assert(window);
     @autoreleasepool
     {
-        const NSRect contentRect = [window->ns.view frame];
+        const NSRect contentRect = [window->view frame];
 
         if (width)
             *width = contentRect.size.width;
@@ -679,8 +555,8 @@ void JATGL_GetFrameBufferSize(JATGLwindow* handle, int* width, int* height)
 
     @autoreleasepool
     {
-        const NSRect contentRect = [window->ns.view frame];
-        const NSRect fbRect = [window->ns.view convertRectToBacking:contentRect];
+        const NSRect contentRect = [window->view frame];
+        const NSRect fbRect = [window->view convertRectToBacking:contentRect];
 
         if (width)
             *width = (int) fbRect.size.width;
@@ -707,31 +583,14 @@ void JATGL_Poll(void)
     }
 }
 
-void _JATGLPlatformPostEmptyEvent(void)
-{
-    @autoreleasepool
-    {
-        NSEvent* event = [NSEvent otherEventWithType:NSEventTypeApplicationDefined
-            location:NSMakePoint(0, 0)
-            modifierFlags:0
-            timestamp:0
-            windowNumber:0
-            context:nil
-            subtype:0
-            data1:0
-            data2:0];
-        [NSApp postEvent:event atStart:YES];
-    }
-}
-
 void JATGL_GetMousePosition(JATGLwindow* handle, double* xpos, double* ypos)
 {
     _JATGLwindow* window = (_JATGLwindow*)handle;
     assert(window);
     @autoreleasepool
     {
-        const NSRect contentRect = [window->ns.view frame];
-        const NSPoint pos = [window->ns.object mouseLocationOutsideOfEventStream];
+        const NSRect contentRect = [window->view frame];
+        const NSPoint pos = [window->nsobject mouseLocationOutsideOfEventStream];
 
         if (xpos)
             *xpos = pos.x;
@@ -740,73 +599,21 @@ void JATGL_GetMousePosition(JATGLwindow* handle, double* xpos, double* ypos)
     }
 }
 
-const char* JATGL_GetKeyStateName(int key, int scancode)
-{
-    if (key != JATGL_KEY_UNKNOWN)
-        scancode = key;
-
-    @autoreleasepool
-    {
-        assert(scancode >= 0 && scancode <= 0xFF);
-        assert(_JATGL.ns.keycodes[scancode] != JATGL_KEY_UNKNOWN);
-
-        const int key = _JATGL.ns.keycodes[scancode];
-
-        UInt32 deadKeyState = 0;
-        UniChar characters[4];
-        UniCharCount characterCount = 0;
-
-        if (UCKeyTranslate([(NSData*) _JATGL.ns.unicodeData bytes],
-         scancode,
-         kUCKeyActionDisplay,
-         0,
-         LMGetKbdType(),
-         kUCKeyTranslateNoDeadKeysBit,
-         &deadKeyState,
-         sizeof(characters) / sizeof(characters[0]),
-         &characterCount,
-         characters) != noErr)
-        {
-            return NULL;
-        }
-
-        if (!characterCount)
-            return NULL;
-
-        CFStringRef string = CFStringCreateWithCharactersNoCopy(kCFAllocatorDefault,
-            characters,
-            characterCount,
-            kCFAllocatorNull);
-        CFStringGetCString(string,
-         _JATGL.ns.keynames[key],
-         sizeof(_JATGL.ns.keynames[key]),
-         kCFStringEncodingUTF8);
-        CFRelease(string);
-
-        return _JATGL.ns.keynames[key];
-    }
-}
-
-@interface GLFWHelper : NSObject
+@interface JATGL_Helper : NSObject
 @end
 
-@implementation GLFWHelper
-
-- (void)selectedKeyboardInputSourceChanged:(NSObject* )object
-{
-    updateUnicodeDataNS();
-}
+@implementation JATGL_Helper
 
 - (void)doNothing:(id)object
 {
 }
 
-@end // GLFWHelper
+@end // JATGL_Helper
 
-@interface GLFWApplicationDelegate : NSObject <NSApplicationDelegate>
+@interface JATGL_ApplicationDelegate : NSObject <NSApplicationDelegate>
 @end
 
-@implementation GLFWApplicationDelegate
+@implementation JATGL_ApplicationDelegate
 
 - (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)sender
 {
@@ -826,17 +633,29 @@ const char* JATGL_GetKeyStateName(int key, int scancode)
 
 - (void)applicationDidFinishLaunching:(NSNotification *)notification
 {
-    _JATGLPlatformPostEmptyEvent();
-    [NSApp stop:nil];
+    @autoreleasepool
+    {
+        NSEvent* event = [NSEvent otherEventWithType:NSEventTypeApplicationDefined
+            location:NSMakePoint(0, 0)
+            modifierFlags:0
+            timestamp:0
+            windowNumber:0
+            context:nil
+            subtype:0
+            data1:0
+            data2:0];
+        [NSApp postEvent:event atStart:YES];
+        [NSApp stop:nil];
+    }
 }
 
-@end // GLFWApplicationDelegate
+@end // JATGL_ApplicationDelegate
 
 int _JATGLInit(void)
 {
     @autoreleasepool
     {
-        _JATGL.ns.helper = [[GLFWHelper alloc] init];
+        _JATGL.ns.helper = [[JATGL_Helper alloc] init];
 
         [NSThread detachNewThreadSelector:@selector(doNothing:)
             toTarget:_JATGL.ns.helper
@@ -844,7 +663,7 @@ int _JATGLInit(void)
 
         [NSApplication sharedApplication];
 
-        _JATGL.ns.delegate = [[GLFWApplicationDelegate alloc] init];
+        _JATGL.ns.delegate = [[JATGL_ApplicationDelegate alloc] init];
         assert(_JATGL.ns.delegate);
 
         [NSApp setDelegate:_JATGL.ns.delegate];
@@ -868,7 +687,7 @@ int _JATGLInit(void)
             name:NSTextInputContextKeyboardSelectionDidChangeNotification
             object:nil];
 
-        createKeyTables();
+        CreateKeyTables();
 
         _JATGL.ns.eventSource = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
         if (!_JATGL.ns.eventSource)
@@ -876,8 +695,7 @@ int _JATGLInit(void)
 
         CGEventSourceSetLocalEventsSuppressionInterval(_JATGL.ns.eventSource, 0.0);
 
-        if (!initializeTIS())
-            return JATGL_FALSE;
+        InitializeTIS();
 
         if (![[NSRunningApplication currentApplication] isFinishedLaunching])
             [NSApp run];
@@ -935,12 +753,6 @@ int JATGL_GetMouseButtonState(JATGLwindow* handle, int button)
     return (int) window->mouseButtons[button];
 }
 
-int JATGL_GetKeyStateScancode(int key)
-{
-    assert(key >= JATGL_KEY_FIRST && key <= JATGL_KEY_LAST);
-    return _JATGL.ns.scancodes[key];
-}
-
 void _JATGLInputChar(_JATGLwindow* window, unsigned int codepoint, int mods, int plain)
 {
     if (codepoint < 32 || (codepoint > 126 && codepoint < 160))
@@ -966,11 +778,10 @@ int JATGL_Initialize(void)
         return JATGL_FALSE;
     }
 
-    if (!CreateTLS(&_JATGL.threadContext))
-    {
-        Shutdown();
-        return JATGL_FALSE;
-    }
+    assert(_JATGL.threadContext.allocated == JATGL_FALSE);
+    int result = pthread_key_create(&_JATGL.threadContext.key, NULL);
+    assert(result == 0);
+    _JATGL.threadContext.allocated = JATGL_TRUE;
 
     _JATGL.initialized = JATGL_TRUE;
     return JATGL_TRUE;
@@ -1006,17 +817,37 @@ JATGLwindow* JATGL_NewWindow(int width, int height, const char* title)
 void JATGL_DeleteWindow(JATGLwindow* handle)
 {
     _JATGLwindow* window = (_JATGLwindow*) handle;
-
     if (window == NULL)
         return;
 
     window->characterCallback = NULL;
     window->mouseButtonCallback = NULL;
 
-    if (window == GetTLS(&_JATGL.threadContext))
+    assert(_JATGL.threadContext.allocated == JATGL_TRUE);
+    if (window == pthread_getspecific(_JATGL.threadContext.key))
         _JATGLMakeContextCurrent(NULL);
 
-    _JATGLPlatformDestroyWindow(window);
+    @autoreleasepool
+    {
+        [window->nsobject orderOut:nil];
+        [window->pixelFormat release];
+        window->pixelFormat = nil;
+
+        [window->object release];
+        window->object = nil;
+
+        [window->nsobject setDelegate:nil];
+        [window->delegate release];
+        window->delegate = nil;
+
+        [window->view release];
+        window->view = nil;
+
+        [window->nsobject close];
+        window->nsobject = nil;
+
+        JATGL_Poll();
+    }
 
     _JATGLwindow** prev = &_JATGL.windowListHead;
     while (*prev != window)
