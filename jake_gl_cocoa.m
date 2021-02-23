@@ -22,26 +22,21 @@ typedef struct JATGL_Window
   JATGLCharacterCallback characterCallback;
 } JATGL_Window;
 
-typedef struct JATGL_TLS
-{
-  pthread_key_t key;
-  int allocated;
-} JATGL_TLS;
-
 typedef struct JATGLmodule
 {
-  JATGL_TLS threadContext;
+  pthread_key_t contextTLSkey;
+  int contextTLSAllocated;
   JATGL_Window *windowListHead;
   CGEventSourceRef eventSource;
   id nsAppDelegate;
   id keyUpMonitor;
-  uint64_t timer_frequency;
+  uint64_t timerFrequency;
 
   short int keycodes[256];
   int initialized;
 } JATGLmodule;
 
-static JATGLmodule s_JATGL = {JATGL_FALSE};
+static JATGLmodule s_JATGL = {0};
 
 static void MakeContextCurrent(JATGL_Window *window)
 {
@@ -52,8 +47,8 @@ static void MakeContextCurrent(JATGL_Window *window)
     else
       [NSOpenGLContext clearCurrentContext];
 
-    assert(s_JATGL.threadContext.allocated == JATGL_TRUE);
-    pthread_setspecific(s_JATGL.threadContext.key, window);
+    assert(s_JATGL.contextTLSAllocated);
+    pthread_setspecific(s_JATGL.contextTLSkey, window);
   }
 }
 
@@ -401,7 +396,7 @@ void JATGL_SetMouseButtonCallback(JATGLwindow *handle, JATGLMouseButtonCallback 
 
 double JATGL_GetTime(void)
 {
-  return (double)mach_absolute_time() / s_JATGL.timer_frequency;
+  return (double)mach_absolute_time() / s_JATGL.timerFrequency;
 }
 
 int JATGL_GetKeyState(JATGLwindow *handle, int key)
@@ -426,7 +421,7 @@ int JATGL_Initialize(void)
     return JATGL_TRUE;
 
   memset(&s_JATGL, 0, sizeof(s_JATGL));
-  s_JATGL.initialized = JATGL_TRUE;
+  s_JATGL.initialized = 1;
 
   @autoreleasepool
   {
@@ -447,9 +442,6 @@ int JATGL_Initialize(void)
     s_JATGL.keyUpMonitor =
         [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskKeyUp handler:block];
 
-    NSDictionary *defaults = @{ @"ApplePressAndHoldEnabled" : @NO };
-    [[NSUserDefaults standardUserDefaults] registerDefaults:defaults];
-
     CreateKeyTables();
 
     s_JATGL.eventSource = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
@@ -469,12 +461,12 @@ int JATGL_Initialize(void)
 
   mach_timebase_info_data_t info;
   mach_timebase_info(&info);
-  s_JATGL.timer_frequency = (info.denom * 1e9) / info.numer;
+  s_JATGL.timerFrequency = (info.denom * 1e9) / info.numer;
 
-  assert(s_JATGL.threadContext.allocated == JATGL_FALSE);
-  int result = pthread_key_create(&s_JATGL.threadContext.key, NULL);
+  assert(!s_JATGL.contextTLSAllocated);
+  int result = pthread_key_create(&s_JATGL.contextTLSkey, NULL);
   assert(result == 0);
-  s_JATGL.threadContext.allocated = JATGL_TRUE;
+  s_JATGL.contextTLSAllocated = 1;
 
   return JATGL_TRUE;
 }
@@ -506,8 +498,8 @@ void JATGL_Shutdown(void)
       [NSEvent removeMonitor:s_JATGL.keyUpMonitor];
   }
 
-  if(s_JATGL.threadContext.allocated)
-    pthread_key_delete(s_JATGL.threadContext.key);
+  if(s_JATGL.contextTLSAllocated)
+    pthread_key_delete(s_JATGL.contextTLSkey);
 
   memset(&s_JATGL, 0, sizeof(s_JATGL));
 }
@@ -598,8 +590,8 @@ void JATGL_DeleteWindow(JATGLwindow *handle)
   window->characterCallback = NULL;
   window->mouseButtonCallback = NULL;
 
-  assert(s_JATGL.threadContext.allocated == JATGL_TRUE);
-  if(window == pthread_getspecific(s_JATGL.threadContext.key))
+  assert(s_JATGL.contextTLSAllocated);
+  if(window == pthread_getspecific(s_JATGL.contextTLSkey))
     MakeContextCurrent(NULL);
 
   @autoreleasepool
