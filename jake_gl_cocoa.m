@@ -689,7 +689,8 @@ JATGLwindow *JATGL_NewWindow(int width, int height, const char *title)
 
   window->nsWindow =
       [[NSWindow alloc] initWithContentRect:contentRect
-                                  styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable
+                                  styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
+                                            NSWindowStyleMaskMiniaturizable
                                     backing:NSBackingStoreBuffered
                                       defer:NO];
 
