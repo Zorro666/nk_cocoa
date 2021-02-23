@@ -8,9 +8,9 @@
 typedef struct JATGL_Window
 {
   struct JATGL_Window *next;
-  id pixelFormat;
-  id object;
-  id nsobject;
+  id nsglPixelFormat;
+  id nsglObject;
+  id nsWindow;
   id delegate;
   id view;
   id layer;
@@ -49,7 +49,7 @@ static void MakeContextCurrent(JATGL_Window *window)
   @autoreleasepool
   {
     if(window)
-      [window->object makeCurrentContext];
+      [window->nsglObject makeCurrentContext];
     else
       [NSOpenGLContext clearCurrentContext];
 
@@ -120,7 +120,7 @@ void JATGL_SwapBuffers(JATGLwindow *handle)
   assert(window);
   @autoreleasepool
   {
-    [window->object flushBuffer];
+    [window->nsglObject flushBuffer];
   }
 }
 
@@ -171,7 +171,7 @@ void JATGL_SwapBuffers(JATGLwindow *handle)
 
 - (void)updateLayer
 {
-  [window->object update];
+  [window->nsglObject update];
 }
 
 - (void)mouseDown:(NSEvent *)event
@@ -225,7 +225,7 @@ void JATGL_SwapBuffers(JATGLwindow *handle)
   const NSRect fbRect = [window->view convertRectToBacking:contentRect];
 
   if(window->layer)
-    [window->layer setContentsScale:[window->nsobject backingScaleFactor]];
+    [window->layer setContentsScale:[window->nsWindow backingScaleFactor]];
 }
 
 - (void)keyDown:(NSEvent *)event
@@ -328,7 +328,7 @@ void JATGL_GetMousePosition(JATGLwindow *handle, double *xpos, double *ypos)
   @autoreleasepool
   {
     const NSRect contentRect = [window->view frame];
-    const NSPoint pos = [window->nsobject mouseLocationOutsideOfEventStream];
+    const NSPoint pos = [window->nsWindow mouseLocationOutsideOfEventStream];
 
     if(xpos)
       *xpos = pos.x;
@@ -342,7 +342,7 @@ void JATGL_GetMousePosition(JATGLwindow *handle, double *xpos, double *ypos)
 
 @implementation JATGL_Helper
 
-- (void)doNothing:(id)object
+- (void)doNothing:(id)nsglObject
 {
 }
 
@@ -366,7 +366,7 @@ void JATGL_GetMousePosition(JATGLwindow *handle, double *xpos, double *ypos)
 - (void)applicationDidChangeScreenParameters:(NSNotification *)notification
 {
   for(JATGL_Window *window = s_JATGL.windowListHead; window; window = window->next)
-    [window->object update];
+    [window->nsglObject update];
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)notification
@@ -564,27 +564,27 @@ JATGLwindow *JATGL_NewWindow(int width, int height, const char *title)
 
   contentRect = NSMakeRect(0, 0, width, height);
 
-  window->nsobject =
+  window->nsWindow =
       [[NSWindow alloc] initWithContentRect:contentRect
                                   styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable
                                     backing:NSBackingStoreBuffered
                                       defer:NO];
 
-  assert(window->nsobject);
+  assert(window->nsWindow);
 
-  [(NSWindow *)window->nsobject center];
+  [(NSWindow *)window->nsWindow center];
 
   window->view = [[JATGL_ContentView alloc] initWithJATGLWindow:window];
 
-  [window->nsobject setContentView:window->view];
-  [window->nsobject makeFirstResponder:window->view];
-  [window->nsobject setTitle:@(title)];
-  [window->nsobject setDelegate:window->delegate];
-  [window->nsobject setAcceptsMouseMovedEvents:YES];
-  [window->nsobject setRestorable:NO];
+  [window->nsWindow setContentView:window->view];
+  [window->nsWindow makeFirstResponder:window->view];
+  [window->nsWindow setTitle:@(title)];
+  [window->nsWindow setDelegate:window->delegate];
+  [window->nsWindow setAcceptsMouseMovedEvents:YES];
+  [window->nsWindow setRestorable:NO];
 
-  if([window->nsobject respondsToSelector:@selector(setTabbingMode:)])
-    [window->nsobject setTabbingMode:NSWindowTabbingModeDisallowed];
+  if([window->nsWindow respondsToSelector:@selector(setTabbingMode:)])
+    [window->nsWindow setTabbingMode:NSWindowTabbingModeDisallowed];
 
   NSOpenGLPixelFormatAttribute attributes[16] = {NSOpenGLPFAAccelerated,
                                                  NSOpenGLPFAClosestPolicy,
@@ -603,18 +603,19 @@ JATGLwindow *JATGL_NewWindow(int width, int height, const char *title)
                                                  0,
                                                  0};
 
-  window->pixelFormat = [[NSOpenGLPixelFormat alloc] initWithAttributes:attributes];
-  assert(window->pixelFormat);
+  window->nsglPixelFormat = [[NSOpenGLPixelFormat alloc] initWithAttributes:attributes];
+  assert(window->nsglPixelFormat);
 
-  window->object = [[NSOpenGLContext alloc] initWithFormat:window->pixelFormat shareContext:nil];
-  assert(window->object);
+  window->nsglObject =
+      [[NSOpenGLContext alloc] initWithFormat:window->nsglPixelFormat shareContext:nil];
+  assert(window->nsglObject);
 
   [window->view setWantsBestResolutionOpenGLSurface:true];
-  [window->object setView:window->view];
+  [window->nsglObject setView:window->view];
 
-  [window->nsobject orderFront:nil];
+  [window->nsWindow orderFront:nil];
   [NSApp activateIgnoringOtherApps:YES];
-  [window->nsobject makeKeyAndOrderFront:nil];
+  [window->nsWindow makeKeyAndOrderFront:nil];
 
   MakeContextCurrent(window);
 
@@ -636,22 +637,22 @@ void JATGL_DeleteWindow(JATGLwindow *handle)
 
   @autoreleasepool
   {
-    [window->nsobject orderOut:nil];
-    [window->pixelFormat release];
-    window->pixelFormat = nil;
+    [window->nsWindow orderOut:nil];
+    [window->nsglPixelFormat release];
+    window->nsglPixelFormat = nil;
 
-    [window->object release];
-    window->object = nil;
+    [window->nsglObject release];
+    window->nsglObject = nil;
 
-    [window->nsobject setDelegate:nil];
+    [window->nsWindow setDelegate:nil];
     [window->delegate release];
     window->delegate = nil;
 
     [window->view release];
     window->view = nil;
 
-    [window->nsobject close];
-    window->nsobject = nil;
+    [window->nsWindow close];
+    window->nsWindow = nil;
 
     JATGL_Poll();
   }
