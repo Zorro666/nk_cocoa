@@ -14,8 +14,6 @@ typedef struct JATGL_Window
   id delegate;
   id view;
   id layer;
-  int width, height;
-  int fbWidth, fbHeight;
   int shouldClose;
   char mouseButtons[3];
   char keys[JATGL_KEY_LAST + 1];
@@ -106,17 +104,12 @@ static void InputMouseClick(JATGL_Window *window, int button, int action)
     window->mouseButtonCallback((JATGLwindow *)window, button, action, 0);
 }
 
-static void InputKey(JATGL_Window *window, int key, int scancode, int action)
+static void InputKey(JATGL_Window *window, int key, int action)
 {
   if(key >= 0 && key <= JATGL_KEY_LAST)
   {
-    int repeated = JATGL_FALSE;
-
     if(action == JATGL_RELEASE && window->keys[key] == JATGL_RELEASE)
       return;
-
-    if(action == JATGL_PRESS && window->keys[key] == JATGL_PRESS)
-      repeated = JATGL_TRUE;
 
     window->keys[key] = (char)action;
   }
@@ -146,9 +139,8 @@ void JATGL_SwapBuffers(JATGLwindow *handle)
 - (instancetype)initWithJATGLWindow:(JATGL_Window *)initWindow
 {
   self = [super init];
-  if(self != nil)
-    window = initWindow;
-
+  assert(self);
+window = initWindow;
   return self;
 }
 
@@ -156,26 +148,6 @@ void JATGL_SwapBuffers(JATGLwindow *handle)
 {
   window->shouldClose = JATGL_TRUE;
   return NO;
-}
-
-- (void)windowDidResize:(NSNotification *)notification
-{
-  [window->object update];
-
-  const NSRect contentRect = [window->view frame];
-  const NSRect fbRect = [window->view convertRectToBacking:contentRect];
-
-  if(fbRect.size.width != window->fbWidth || fbRect.size.height != window->fbHeight)
-  {
-    window->fbWidth = fbRect.size.width;
-    window->fbHeight = fbRect.size.height;
-  }
-
-  if(contentRect.size.width != window->width || contentRect.size.height != window->height)
-  {
-    window->width = contentRect.size.width;
-    window->height = contentRect.size.height;
-  }
 }
 @end
 
@@ -193,11 +165,8 @@ void JATGL_SwapBuffers(JATGLwindow *handle)
 - (instancetype)initWithJATGLWindow:(JATGL_Window *)initWindow
 {
   self = [super init];
-  if(self != nil)
-  {
+  assert(self);
     window = initWindow;
-  }
-
   return self;
 }
 
@@ -256,12 +225,6 @@ void JATGL_SwapBuffers(JATGLwindow *handle)
   const NSRect contentRect = [window->view frame];
   const NSRect fbRect = [window->view convertRectToBacking:contentRect];
 
-  if(fbRect.size.width != window->fbWidth || fbRect.size.height != window->fbHeight)
-  {
-    window->fbWidth = fbRect.size.width;
-    window->fbHeight = fbRect.size.height;
-  }
-
   if(window->layer)
     [window->layer setContentsScale:[window->nsobject backingScaleFactor]];
 }
@@ -269,7 +232,7 @@ void JATGL_SwapBuffers(JATGLwindow *handle)
 - (void)keyDown:(NSEvent *)event
 {
   const int key = TranslateKey([event keyCode]);
-  InputKey(window, key, [event keyCode], JATGL_PRESS);
+  InputKey(window, key, JATGL_PRESS);
   [self interpretKeyEvents:@[ event ]];
 }
 
@@ -298,94 +261,16 @@ void JATGL_SwapBuffers(JATGLwindow *handle)
   else
     action = JATGL_RELEASE;
 
-  InputKey(window, key, [event keyCode], action);
+  InputKey(window, key, action);
 }
 
 - (void)keyUp:(NSEvent *)event
 {
   const int key = TranslateKey([event keyCode]);
-  InputKey(window, key, [event keyCode], JATGL_RELEASE);
+  InputKey(window, key, JATGL_RELEASE);
 }
 
 @end
-
-static int CreateNativeWindow(JATGL_Window *window, int width, int height, const char *title)
-{
-  window->delegate = [[JATGL_WindowDelegate alloc] initWithJATGLWindow:window];
-  assert(window->delegate);
-
-  NSRect contentRect;
-
-  contentRect = NSMakeRect(0, 0, width, height);
-
-  window->nsobject =
-      [[NSWindow alloc] initWithContentRect:contentRect
-                                  styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable
-                                    backing:NSBackingStoreBuffered
-                                      defer:NO];
-
-  assert(window->nsobject);
-
-  [(NSWindow *)window->nsobject center];
-
-  window->view = [[JATGL_ContentView alloc] initWithJATGLWindow:window];
-
-  [window->nsobject setContentView:window->view];
-  [window->nsobject makeFirstResponder:window->view];
-  [window->nsobject setTitle:@(title)];
-  [window->nsobject setDelegate:window->delegate];
-  [window->nsobject setAcceptsMouseMovedEvents:YES];
-  [window->nsobject setRestorable:NO];
-
-  if([window->nsobject respondsToSelector:@selector(setTabbingMode:)])
-    [window->nsobject setTabbingMode:NSWindowTabbingModeDisallowed];
-
-  JATGL_GetWindowSize((JATGLwindow *)window, &window->width, &window->height);
-  JATGL_GetFrameBufferSize((JATGLwindow *)window, &window->fbWidth, &window->fbHeight);
-
-  return JATGL_TRUE;
-}
-
-static void Shutdown(void)
-{
-  while(s_JATGL.windowListHead)
-    JATGL_DeleteWindow((JATGLwindow *)s_JATGL.windowListHead);
-
-  @autoreleasepool
-  {
-    if(s_JATGL.eventSource)
-    {
-      CFRelease(s_JATGL.eventSource);
-      s_JATGL.eventSource = NULL;
-    }
-
-    if(s_JATGL.delegate)
-    {
-      [NSApp setDelegate:nil];
-      [s_JATGL.delegate release];
-      s_JATGL.delegate = nil;
-    }
-
-    if(s_JATGL.helper)
-    {
-      [[NSNotificationCenter defaultCenter]
-          removeObserver:s_JATGL.helper
-                    name:NSTextInputContextKeyboardSelectionDidChangeNotification
-                  object:nil];
-      [[NSNotificationCenter defaultCenter] removeObserver:s_JATGL.helper];
-      [s_JATGL.helper release];
-      s_JATGL.helper = nil;
-    }
-
-    if(s_JATGL.keyUpMonitor)
-      [NSEvent removeMonitor:s_JATGL.keyUpMonitor];
-  }
-
-  if(s_JATGL.threadContext.allocated)
-    pthread_key_delete(s_JATGL.threadContext.key);
-
-  memset(&s_JATGL, 0, sizeof(s_JATGL));
-}
 
 void JATGL_GetWindowSize(JATGLwindow *handle, int *width, int *height)
 {
@@ -554,6 +439,7 @@ int JATGL_Initialize(void)
     return JATGL_TRUE;
 
   memset(&s_JATGL, 0, sizeof(s_JATGL));
+  s_JATGL.initialized = JATGL_TRUE;
 
   @autoreleasepool
   {
@@ -592,7 +478,7 @@ int JATGL_Initialize(void)
     s_JATGL.eventSource = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
     if(!s_JATGL.eventSource)
     {
-      Shutdown();
+      JATGL_Shutdown();
       return JATGL_FALSE;
     }
 
@@ -613,7 +499,6 @@ int JATGL_Initialize(void)
   assert(result == 0);
   s_JATGL.threadContext.allocated = JATGL_TRUE;
 
-  s_JATGL.initialized = JATGL_TRUE;
   return JATGL_TRUE;
 }
 
@@ -621,7 +506,44 @@ void JATGL_Shutdown(void)
 {
   if(!s_JATGL.initialized)
     return;
-  Shutdown();
+
+  while(s_JATGL.windowListHead)
+    JATGL_DeleteWindow((JATGLwindow *)s_JATGL.windowListHead);
+
+  @autoreleasepool
+  {
+    if(s_JATGL.eventSource)
+    {
+      CFRelease(s_JATGL.eventSource);
+      s_JATGL.eventSource = NULL;
+    }
+
+    if(s_JATGL.delegate)
+    {
+      [NSApp setDelegate:nil];
+      [s_JATGL.delegate release];
+      s_JATGL.delegate = nil;
+    }
+
+    if(s_JATGL.helper)
+    {
+      [[NSNotificationCenter defaultCenter]
+          removeObserver:s_JATGL.helper
+                    name:NSTextInputContextKeyboardSelectionDidChangeNotification
+                  object:nil];
+      [[NSNotificationCenter defaultCenter] removeObserver:s_JATGL.helper];
+      [s_JATGL.helper release];
+      s_JATGL.helper = nil;
+    }
+
+    if(s_JATGL.keyUpMonitor)
+      [NSEvent removeMonitor:s_JATGL.keyUpMonitor];
+  }
+
+  if(s_JATGL.threadContext.allocated)
+    pthread_key_delete(s_JATGL.threadContext.key);
+
+  memset(&s_JATGL, 0, sizeof(s_JATGL));
 }
 
 JATGLwindow *JATGL_NewWindow(int width, int height, const char *title)
@@ -636,11 +558,34 @@ JATGLwindow *JATGL_NewWindow(int width, int height, const char *title)
   window->next = s_JATGL.windowListHead;
   s_JATGL.windowListHead = window;
 
-  if(!CreateNativeWindow(window, width, height, title))
-  {
-    JATGL_DeleteWindow((JATGLwindow *)window);
-    return NULL;
-  }
+  window->delegate = [[JATGL_WindowDelegate alloc] initWithJATGLWindow:window];
+  assert(window->delegate);
+
+  NSRect contentRect;
+
+  contentRect = NSMakeRect(0, 0, width, height);
+
+  window->nsobject =
+      [[NSWindow alloc] initWithContentRect:contentRect
+                                  styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable
+                                    backing:NSBackingStoreBuffered
+                                      defer:NO];
+
+  assert(window->nsobject);
+
+  [(NSWindow *)window->nsobject center];
+
+  window->view = [[JATGL_ContentView alloc] initWithJATGLWindow:window];
+
+  [window->nsobject setContentView:window->view];
+  [window->nsobject makeFirstResponder:window->view];
+  [window->nsobject setTitle:@(title)];
+  [window->nsobject setDelegate:window->delegate];
+  [window->nsobject setAcceptsMouseMovedEvents:YES];
+  [window->nsobject setRestorable:NO];
+
+  if([window->nsobject respondsToSelector:@selector(setTabbingMode:)])
+    [window->nsobject setTabbingMode:NSWindowTabbingModeDisallowed];
 
   assert(!s_JATGL.framework);
   s_JATGL.framework = CFBundleGetBundleWithIdentifier(CFSTR("com.apple.opengl"));
