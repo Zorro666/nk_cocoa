@@ -143,7 +143,7 @@ void JATGL_SwapBuffers(JATGLwindow *handle)
 }
 @end
 
-@interface JATGL_ContentView : NSView
+@interface JATGL_WindowView : NSView
 {
   JATGL_Window *window;
 }
@@ -152,7 +152,7 @@ void JATGL_SwapBuffers(JATGLwindow *handle)
 
 @end
 
-@implementation JATGL_ContentView
+@implementation JATGL_WindowView
 
 - (instancetype)initWithJATGLWindow:(JATGL_Window *)initWindow
 {
@@ -522,7 +522,7 @@ JATGLwindow *JATGL_NewWindow(int width, int height, const char *title)
 
   [(NSWindow *)window->nsWindow center];
 
-  window->view = [[JATGL_ContentView alloc] initWithJATGLWindow:window];
+  window->view = [[JATGL_WindowView alloc] initWithJATGLWindow:window];
 
   [window->nsWindow setContentView:window->view];
   [window->nsWindow makeFirstResponder:window->view];
