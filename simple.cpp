@@ -57,9 +57,9 @@ static const char *fragment_shader_text =
     "}\n";
 
 static int closeWindow = 0;
-void KeyUpCallback(JATGLwindow *window, unsigned int key)
+void KeyCallback(JATGLwindow *window, int key, int action)
 {
-  if(key == JATGL_KEY_ESCAPE)
+  if((key == JATGL_KEY_ESCAPE) && (action = JATGL_PRESS))
   {
     closeWindow = 1;
   }
@@ -76,7 +76,7 @@ int main(void)
     JATGL_Shutdown();
     exit(EXIT_FAILURE);
   }
-  JATGL_SetCharacterCallback(window, KeyUpCallback);
+  JATGL_SetKeyCallback(window, KeyCallback);
 
   GLuint vertex_buffer;
   glGenBuffers(1, &vertex_buffer);

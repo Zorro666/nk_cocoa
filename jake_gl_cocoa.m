@@ -17,8 +17,10 @@ typedef struct JATGL_Window
   char mouseButtons[3];
   char keys[JATGL_KEY_LAST + 1];
 
-  JATGLMouseButtonCallback mouseButtonCallback;
   JATGLCharacterCallback characterCallback;
+  JATGLKeyCallback keyCallback;
+  JATGLMouseButtonCallback mouseButtonCallback;
+  JATGLScrollCallback scrollCallback;
 } JATGL_Window;
 
 typedef struct JATGL_GlobalState
@@ -202,7 +204,8 @@ void JATGL_SwapBuffers(JATGLwindow *handle)
 }
 @end
 
-@interface JATGL_WindowView : NSView
+@interface JATGL_WindowView : NSView<NSTextInputClient>
+
 {
   JATGL_Window *window;
 }
@@ -276,6 +279,8 @@ void JATGL_SwapBuffers(JATGLwindow *handle)
   const int key = TranslateKey([event keyCode]);
   InputKey(window, key, JATGL_PRESS);
   [self interpretKeyEvents:@[ event ]];
+  if(window->keyCallback)
+    window->keyCallback((JATGLwindow *)window, key, JATGL_PRESS);
 }
 
 - (void)flagsChanged:(NSEvent *)event
@@ -310,8 +315,110 @@ void JATGL_SwapBuffers(JATGLwindow *handle)
 {
   const int key = TranslateKey([event keyCode]);
   InputKey(window, key, JATGL_RELEASE);
-  if(window->characterCallback)
-    window->characterCallback((JATGLwindow *)window, key);
+  if(window->keyCallback)
+    window->keyCallback((JATGLwindow *)window, key, JATGL_RELEASE);
+}
+
+- (void)scrollWheel:(NSEvent *)event
+{
+  double deltaX = [event scrollingDeltaX];
+  double deltaY = [event scrollingDeltaY];
+
+  if([event hasPreciseScrollingDeltas])
+  {
+    deltaX *= 0.1;
+    deltaY *= 0.1;
+  }
+
+  if(fabs(deltaX) > 0.0 || fabs(deltaY) > 0.0)
+  {
+    if(window->scrollCallback)
+      window->scrollCallback((JATGLwindow *)window, deltaX, deltaY);
+  }
+}
+
+static const NSRange s_NSRange_Empty = {NSNotFound, 0};
+
+- (BOOL)hasMarkedText
+{
+  return NO;
+}
+
+- (NSRange)markedRange
+{
+  return s_NSRange_Empty;
+}
+
+- (NSRange)selectedRange
+{
+  return s_NSRange_Empty;
+}
+
+- (void)setMarkedText:(id)string
+        selectedRange:(NSRange)selectedRange
+     replacementRange:(NSRange)replacementRange
+{
+}
+
+- (void)unmarkText
+{
+}
+
+- (NSArray *)validAttributesForMarkedText
+{
+  return [NSArray array];
+}
+
+- (NSAttributedString *)attributedSubstringForProposedRange:(NSRange)range
+                                                actualRange:(NSRangePointer)actualRange
+{
+  return nil;
+}
+
+- (NSUInteger)characterIndexForPoint:(NSPoint)point
+{
+  return 0;
+}
+
+- (NSRect)firstRectForCharacterRange:(NSRange)range actualRange:(NSRangePointer)actualRange
+{
+  const NSRect frame = [window->view frame];
+  return NSMakeRect(frame.origin.x, frame.origin.y, 0.0, 0.0);
+}
+
+- (void)insertText:(id)string replacementRange:(NSRange)replacementRange
+{
+  if(!window->characterCallback)
+    return;
+
+  NSString *characters;
+  NSEvent *event = [NSApp currentEvent];
+
+  if([string isKindOfClass:[NSAttributedString class]])
+    characters = [string string];
+  else
+    characters = (NSString *)string;
+
+  NSRange range = NSMakeRange(0, [characters length]);
+  while(range.length)
+  {
+    uint32_t codepoint = 0;
+
+    if([characters getBytes:&codepoint
+                  maxLength:sizeof(codepoint)
+                 usedLength:NULL
+                   encoding:NSUTF32StringEncoding
+                    options:0
+                      range:range
+             remainingRange:&range])
+    {
+      if(codepoint >= 0xf700 && codepoint <= 0xf7ff)
+        continue;
+
+      if(window->characterCallback)
+        window->characterCallback((JATGLwindow *)window, codepoint);
+    }
+  }
 }
 
 @end
@@ -435,6 +542,20 @@ void JATGL_SetCharacterCallback(JATGLwindow *handle, JATGLCharacterCallback call
   JATGL_Window *window = (JATGL_Window *)handle;
   assert(window);
   window->characterCallback = callback;
+}
+
+void JATGL_SetKeyCallback(JATGLwindow *handle, JATGLKeyCallback callback)
+{
+  JATGL_Window *window = (JATGL_Window *)handle;
+  assert(window);
+  window->keyCallback = callback;
+}
+
+void JATGL_SetScrollCallback(JATGLwindow *handle, JATGLScrollCallback callback)
+{
+  JATGL_Window *window = (JATGL_Window *)handle;
+  assert(window);
+  window->scrollCallback = callback;
 }
 
 void JATGL_SetMouseButtonCallback(JATGLwindow *handle, JATGLMouseButtonCallback callback)
@@ -631,7 +752,9 @@ void JATGL_DeleteWindow(JATGLwindow *handle)
     return;
 
   window->characterCallback = NULL;
+  window->keyCallback = NULL;
   window->mouseButtonCallback = NULL;
+  window->scrollCallback = NULL;
 
   assert(s_JATGL.contextTLSAllocated);
   if(window == pthread_getspecific(s_JATGL.contextTLSkey))

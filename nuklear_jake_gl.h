@@ -346,6 +346,7 @@ NK_API struct nk_context *nk_jake_init(JATGLwindow *win, enum nk_jake_init_state
   if(init_state == NK_JAKE_INSTALL_CALLBACKS)
   {
     JATGL_SetCharacterCallback(win, nk_jake_char_callback);
+    JATGL_SetScrollCallback(win, nk_jake_scroll_callback);
     JATGL_SetMouseButtonCallback(win, nk_jake_mouse_button_callback);
   }
   nk_init_default(&nk_jake.ctx, 0);

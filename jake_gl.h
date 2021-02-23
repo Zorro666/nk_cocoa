@@ -95,6 +95,8 @@ extern "C" {
 typedef struct JATGLwindow JATGLwindow;
 typedef void (*JATGLMouseButtonCallback)(JATGLwindow *, int, int, int);
 typedef void (*JATGLCharacterCallback)(JATGLwindow *, unsigned int);
+typedef void (*JATGLKeyCallback)(JATGLwindow *, int, int);
+typedef void (*JATGLScrollCallback)(JATGLwindow *, double, double);
 
 int JATGL_Initialize(void);
 void JATGL_Shutdown(void);
@@ -109,6 +111,8 @@ void JATGL_Poll(void);
 void JATGL_GetMousePosition(JATGLwindow *handle, double *xpos, double *ypos);
 double JATGL_GetTime(void);
 void JATGL_SetCharacterCallback(JATGLwindow *window, JATGLCharacterCallback callback);
+void JATGL_SetKeyCallback(JATGLwindow *window, JATGLKeyCallback callback);
+void JATGL_SetScrollCallback(JATGLwindow *window, JATGLScrollCallback callback);
 void JATGL_SetMouseButtonCallback(JATGLwindow *window, JATGLMouseButtonCallback callback);
 int JATGL_GetKeyState(JATGLwindow *window, int key);
 int JATGL_GetMouseButtonState(JATGLwindow *window, int button);
