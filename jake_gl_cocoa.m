@@ -34,7 +34,6 @@ typedef struct JATGLmodule
   JATGL_Window *windowListHead;
   CGEventSourceRef eventSource;
   id nsAppDelegate;
-  id helper;
   id keyUpMonitor;
   uint64_t timer_frequency;
 
@@ -337,17 +336,6 @@ void JATGL_GetMousePosition(JATGLwindow *handle, double *xpos, double *ypos)
   }
 }
 
-@interface JATGL_Helper : NSObject
-@end
-
-@implementation JATGL_Helper
-
-- (void)doNothing:(id)nsglObject
-{
-}
-
-@end    // JATGL_Helper
-
 @interface JATGL_ApplicationDelegate : NSObject<NSApplicationDelegate>
 @end
 
@@ -442,10 +430,6 @@ int JATGL_Initialize(void)
 
   @autoreleasepool
   {
-    s_JATGL.helper = [[JATGL_Helper alloc] init];
-
-    [NSThread detachNewThreadSelector:@selector(doNothing:) toTarget:s_JATGL.helper withObject:nil];
-
     [NSApplication sharedApplication];
 
     s_JATGL.nsAppDelegate = [[JATGL_ApplicationDelegate alloc] init];
@@ -465,12 +449,6 @@ int JATGL_Initialize(void)
 
     NSDictionary *defaults = @{ @"ApplePressAndHoldEnabled" : @NO };
     [[NSUserDefaults standardUserDefaults] registerDefaults:defaults];
-
-    [[NSNotificationCenter defaultCenter]
-        addObserver:s_JATGL.helper
-           selector:@selector(selectedKeyboardInputSourceChanged:)
-               name:NSTextInputContextKeyboardSelectionDidChangeNotification
-             object:nil];
 
     CreateKeyTables();
 
@@ -522,17 +500,6 @@ void JATGL_Shutdown(void)
       [NSApp setDelegate:nil];
       [s_JATGL.nsAppDelegate release];
       s_JATGL.nsAppDelegate = nil;
-    }
-
-    if(s_JATGL.helper)
-    {
-      [[NSNotificationCenter defaultCenter]
-          removeObserver:s_JATGL.helper
-                    name:NSTextInputContextKeyboardSelectionDidChangeNotification
-                  object:nil];
-      [[NSNotificationCenter defaultCenter] removeObserver:s_JATGL.helper];
-      [s_JATGL.helper release];
-      s_JATGL.helper = nil;
     }
 
     if(s_JATGL.keyUpMonitor)
