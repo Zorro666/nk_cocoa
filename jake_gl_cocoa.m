@@ -61,61 +61,6 @@ static void MakeContextCurrent(JATGL_Window *window)
   }
 }
 
-static void CreateContextNSGL(JATGL_Window *window)
-{
-  assert(!s_JATGL.framework);
-  s_JATGL.framework = CFBundleGetBundleWithIdentifier(CFSTR("com.apple.opengl"));
-  assert(s_JATGL.framework);
-
-#define addAttrib(a)                                              \
-  {                                                               \
-    assert((size_t)index < sizeof(attribs) / sizeof(attribs[0])); \
-    attribs[index++] = a;                                         \
-  }
-#define setAttrib(a, v) \
-  {                     \
-    addAttrib(a);       \
-    addAttrib(v);       \
-  }
-
-  NSOpenGLPixelFormatAttribute attribs[40];
-  int index = 0;
-
-  addAttrib(NSOpenGLPFAAccelerated);
-  addAttrib(NSOpenGLPFAClosestPolicy);
-
-  setAttrib(NSOpenGLPFAOpenGLProfile, NSOpenGLProfileVersion4_1Core);
-  setAttrib(NSOpenGLPFAColorSize, 24);
-  setAttrib(NSOpenGLPFAAlphaSize, 8);
-  setAttrib(NSOpenGLPFADepthSize, 24);
-  setAttrib(NSOpenGLPFAStencilSize, 8);
-
-  addAttrib(NSOpenGLPFADoubleBuffer);
-
-  setAttrib(NSOpenGLPFASampleBuffers, 0);
-  addAttrib(0);
-
-#undef addAttrib
-#undef setAttrib
-
-  window->pixelFormat = [[NSOpenGLPixelFormat alloc] initWithAttributes:attribs];
-  assert(window->pixelFormat);
-
-  NSOpenGLContext *share = nil;
-
-  window->object = [[NSOpenGLContext alloc] initWithFormat:window->pixelFormat shareContext:share];
-  assert(window->object);
-
-  [window->view setWantsBestResolutionOpenGLSurface:true];
-  [window->object setView:window->view];
-
-  [window->nsobject orderFront:nil];
-  [NSApp activateIgnoringOtherApps:YES];
-  [window->nsobject makeKeyAndOrderFront:nil];
-
-  MakeContextCurrent(window);
-}
-
 static void CreateKeyTables(void)
 {
   int scancode;
@@ -143,26 +88,12 @@ static void CreateKeyTables(void)
   s_JATGL.keycodes[0x7E] = JATGL_KEY_UP;
 }
 
-// Translate a macOS keycode
 static int TranslateKey(unsigned int key)
 {
   if(key >= sizeof(s_JATGL.keycodes) / sizeof(s_JATGL.keycodes[0]))
     return JATGL_KEY_UNKNOWN;
 
   return s_JATGL.keycodes[key];
-}
-
-static NSUInteger TranslateKeyToModifierFlag(int key)
-{
-  switch(key)
-  {
-    case JATGL_KEY_LEFT_SHIFT:
-    case JATGL_KEY_RIGHT_SHIFT: return NSEventModifierFlagShift;
-    case JATGL_KEY_LEFT_CONTROL:
-    case JATGL_KEY_RIGHT_CONTROL: return NSEventModifierFlagControl;
-  }
-
-  return 0;
 }
 
 static void InputMouseClick(JATGL_Window *window, int button, int action)
@@ -201,27 +132,18 @@ void JATGL_SwapBuffers(JATGLwindow *handle)
   }
 }
 
-void *_JATGL_GetGLFunctionAddress(const char *procname)
-{
-  CFStringRef symbolName =
-      CFStringCreateWithCString(kCFAllocatorDefault, procname, kCFStringEncodingASCII);
-  void *symbol = CFBundleGetFunctionPointerForName(s_JATGL.framework, symbolName);
-  CFRelease(symbolName);
-  return symbol;
-}
-
 @interface JATGL_WindowDelegate : NSObject
 {
   JATGL_Window *window;
 }
 
-- (instancetype)initWithGlfwWindow:(JATGL_Window *)initWindow;
+- (instancetype)initWithJATGLWindow:(JATGL_Window *)initWindow;
 
 @end
 
 @implementation JATGL_WindowDelegate
 
-- (instancetype)initWithGlfwWindow:(JATGL_Window *)initWindow
+- (instancetype)initWithJATGLWindow:(JATGL_Window *)initWindow
 {
   self = [super init];
   if(self != nil)
@@ -262,13 +184,13 @@ void *_JATGL_GetGLFunctionAddress(const char *procname)
   JATGL_Window *window;
 }
 
-- (instancetype)initWithGlfwWindow:(JATGL_Window *)initWindow;
+- (instancetype)initWithJATGLWindow:(JATGL_Window *)initWindow;
 
 @end
 
 @implementation JATGL_ContentView
 
-- (instancetype)initWithGlfwWindow:(JATGL_Window *)initWindow
+- (instancetype)initWithJATGLWindow:(JATGL_Window *)initWindow
 {
   self = [super init];
   if(self != nil)
@@ -357,7 +279,14 @@ void *_JATGL_GetGLFunctionAddress(const char *procname)
   const unsigned int modifierFlags =
       [event modifierFlags] & NSEventModifierFlagDeviceIndependentFlagsMask;
   const int key = TranslateKey([event keyCode]);
-  const NSUInteger keyFlag = TranslateKeyToModifierFlag(key);
+  NSUInteger keyFlag = 0;
+  switch(key)
+  {
+    case JATGL_KEY_LEFT_SHIFT:
+    case JATGL_KEY_RIGHT_SHIFT: keyFlag = NSEventModifierFlagShift; break;
+    case JATGL_KEY_LEFT_CONTROL:
+    case JATGL_KEY_RIGHT_CONTROL: keyFlag = NSEventModifierFlagControl; break;
+  }
 
   if(keyFlag & modifierFlags)
   {
@@ -382,7 +311,7 @@ void *_JATGL_GetGLFunctionAddress(const char *procname)
 
 static int CreateNativeWindow(JATGL_Window *window, int width, int height, const char *title)
 {
-  window->delegate = [[JATGL_WindowDelegate alloc] initWithGlfwWindow:window];
+  window->delegate = [[JATGL_WindowDelegate alloc] initWithJATGLWindow:window];
   assert(window->delegate);
 
   NSRect contentRect;
@@ -399,7 +328,7 @@ static int CreateNativeWindow(JATGL_Window *window, int width, int height, const
 
   [(NSWindow *)window->nsobject center];
 
-  window->view = [[JATGL_ContentView alloc] initWithGlfwWindow:window];
+  window->view = [[JATGL_ContentView alloc] initWithJATGLWindow:window];
 
   [window->nsobject setContentView:window->view];
   [window->nsobject makeFirstResponder:window->view];
@@ -713,7 +642,41 @@ JATGLwindow *JATGL_NewWindow(int width, int height, const char *title)
     return NULL;
   }
 
-  CreateContextNSGL(window);
+  assert(!s_JATGL.framework);
+  s_JATGL.framework = CFBundleGetBundleWithIdentifier(CFSTR("com.apple.opengl"));
+  assert(s_JATGL.framework);
+
+  NSOpenGLPixelFormatAttribute attributes[16] = {NSOpenGLPFAAccelerated,
+                                                 NSOpenGLPFAClosestPolicy,
+                                                 NSOpenGLPFAOpenGLProfile,
+                                                 NSOpenGLProfileVersion4_1Core,
+                                                 NSOpenGLPFAColorSize,
+                                                 24,
+                                                 NSOpenGLPFAAlphaSize,
+                                                 8,
+                                                 NSOpenGLPFADepthSize,
+                                                 24,
+                                                 NSOpenGLPFAStencilSize,
+                                                 8,
+                                                 NSOpenGLPFADoubleBuffer,
+                                                 NSOpenGLPFASampleBuffers,
+                                                 0,
+                                                 0};
+
+  window->pixelFormat = [[NSOpenGLPixelFormat alloc] initWithAttributes:attributes];
+  assert(window->pixelFormat);
+
+  window->object = [[NSOpenGLContext alloc] initWithFormat:window->pixelFormat shareContext:nil];
+  assert(window->object);
+
+  [window->view setWantsBestResolutionOpenGLSurface:true];
+  [window->object setView:window->view];
+
+  [window->nsobject orderFront:nil];
+  [NSApp activateIgnoringOtherApps:YES];
+  [window->nsobject makeKeyAndOrderFront:nil];
+
+  MakeContextCurrent(window);
 
   return (JATGLwindow *)window;
 }
