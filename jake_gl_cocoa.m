@@ -32,7 +32,6 @@ typedef struct JATGLmodule
 {
   JATGL_TLS threadContext;
   JATGL_Window *windowListHead;
-  CFBundleRef framework;
   CGEventSourceRef eventSource;
   id delegate;
   id helper;
@@ -140,7 +139,7 @@ void JATGL_SwapBuffers(JATGLwindow *handle)
 {
   self = [super init];
   assert(self);
-window = initWindow;
+  window = initWindow;
   return self;
 }
 
@@ -166,7 +165,7 @@ window = initWindow;
 {
   self = [super init];
   assert(self);
-    window = initWindow;
+  window = initWindow;
   return self;
 }
 
@@ -586,10 +585,6 @@ JATGLwindow *JATGL_NewWindow(int width, int height, const char *title)
 
   if([window->nsobject respondsToSelector:@selector(setTabbingMode:)])
     [window->nsobject setTabbingMode:NSWindowTabbingModeDisallowed];
-
-  assert(!s_JATGL.framework);
-  s_JATGL.framework = CFBundleGetBundleWithIdentifier(CFSTR("com.apple.opengl"));
-  assert(s_JATGL.framework);
 
   NSOpenGLPixelFormatAttribute attributes[16] = {NSOpenGLPFAAccelerated,
                                                  NSOpenGLPFAClosestPolicy,
