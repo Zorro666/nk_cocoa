@@ -21,7 +21,7 @@ typedef struct JATGL_Window
   JATGLCharacterCallback characterCallback;
 } JATGL_Window;
 
-typedef struct JATGLmodule
+typedef struct JATGL_GlobalState
 {
   short int keycodes[256];
   pthread_key_t contextTLSkey;
@@ -31,11 +31,9 @@ typedef struct JATGLmodule
   id nsAppDelegate;
   id keyUpMonitor;
   uint64_t timerFrequency;
+} JATGL_GlobalState;
 
-  int initialized;
-} JATGLmodule;
-
-static JATGLmodule s_JATGL = {0};
+static JATGL_GlobalState s_JATGL = {0};
 
 static void MakeContextCurrent(JATGL_Window *window)
 {
@@ -406,11 +404,7 @@ int JATGL_GetMouseButtonState(JATGLwindow *handle, int button)
 
 int JATGL_Initialize(void)
 {
-  if(s_JATGL.initialized)
-    return JATGL_TRUE;
-
   memset(&s_JATGL, 0, sizeof(s_JATGL));
-  s_JATGL.initialized = 1;
 
   @autoreleasepool
   {
@@ -462,9 +456,6 @@ int JATGL_Initialize(void)
 
 void JATGL_Shutdown(void)
 {
-  if(!s_JATGL.initialized)
-    return;
-
   while(s_JATGL.windowListHead)
     JATGL_DeleteWindow((JATGLwindow *)s_JATGL.windowListHead);
 
