@@ -33,7 +33,7 @@ typedef struct JATGLmodule
   JATGL_TLS threadContext;
   JATGL_Window *windowListHead;
   CGEventSourceRef eventSource;
-  id delegate;
+  id nsAppDelegate;
   id helper;
   id keyUpMonitor;
   uint64_t timer_frequency;
@@ -448,10 +448,10 @@ int JATGL_Initialize(void)
 
     [NSApplication sharedApplication];
 
-    s_JATGL.delegate = [[JATGL_ApplicationDelegate alloc] init];
-    assert(s_JATGL.delegate);
+    s_JATGL.nsAppDelegate = [[JATGL_ApplicationDelegate alloc] init];
+    assert(s_JATGL.nsAppDelegate);
 
-    [NSApp setDelegate:s_JATGL.delegate];
+    [NSApp setDelegate:s_JATGL.nsAppDelegate];
 
     NSEvent * (^block)(NSEvent *) = ^NSEvent *(NSEvent *event)
     {
@@ -517,11 +517,11 @@ void JATGL_Shutdown(void)
       s_JATGL.eventSource = NULL;
     }
 
-    if(s_JATGL.delegate)
+    if(s_JATGL.nsAppDelegate)
     {
       [NSApp setDelegate:nil];
-      [s_JATGL.delegate release];
-      s_JATGL.delegate = nil;
+      [s_JATGL.nsAppDelegate release];
+      s_JATGL.nsAppDelegate = nil;
     }
 
     if(s_JATGL.helper)
