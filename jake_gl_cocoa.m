@@ -144,7 +144,7 @@ static void CreateKeyTables(void)
 }
 
 // Translate a macOS keycode
-static int translateKey(unsigned int key)
+static int TranslateKey(unsigned int key)
 {
   if(key >= sizeof(s_JATGL.keycodes) / sizeof(s_JATGL.keycodes[0]))
     return JATGL_KEY_UNKNOWN;
@@ -152,7 +152,7 @@ static int translateKey(unsigned int key)
   return s_JATGL.keycodes[key];
 }
 
-static NSUInteger translateKeyToModifierFlag(int key)
+static NSUInteger TranslateKeyToModifierFlag(int key)
 {
   switch(key)
   {
@@ -346,7 +346,7 @@ void *_JATGL_GetGLFunctionAddress(const char *procname)
 
 - (void)keyDown:(NSEvent *)event
 {
-  const int key = translateKey([event keyCode]);
+  const int key = TranslateKey([event keyCode]);
   InputKey(window, key, [event keyCode], JATGL_PRESS);
   [self interpretKeyEvents:@[ event ]];
 }
@@ -356,8 +356,8 @@ void *_JATGL_GetGLFunctionAddress(const char *procname)
   int action;
   const unsigned int modifierFlags =
       [event modifierFlags] & NSEventModifierFlagDeviceIndependentFlagsMask;
-  const int key = translateKey([event keyCode]);
-  const NSUInteger keyFlag = translateKeyToModifierFlag(key);
+  const int key = TranslateKey([event keyCode]);
+  const NSUInteger keyFlag = TranslateKeyToModifierFlag(key);
 
   if(keyFlag & modifierFlags)
   {
@@ -374,7 +374,7 @@ void *_JATGL_GetGLFunctionAddress(const char *procname)
 
 - (void)keyUp:(NSEvent *)event
 {
-  const int key = translateKey([event keyCode]);
+  const int key = TranslateKey([event keyCode]);
   InputKey(window, key, [event keyCode], JATGL_RELEASE);
 }
 
@@ -456,18 +456,6 @@ static void Shutdown(void)
     pthread_key_delete(s_JATGL.threadContext.key);
 
   memset(&s_JATGL, 0, sizeof(s_JATGL));
-}
-
-int _JATGLNewWindow(JATGL_Window *window, int width, int height, const char *title)
-{
-  @autoreleasepool
-  {
-    if(!CreateNativeWindow(window, width, height, title))
-      return JATGL_FALSE;
-
-    CreateContextNSGL(window);
-    return JATGL_TRUE;
-  }
 }
 
 void JATGL_GetWindowSize(JATGLwindow *handle, int *width, int *height)
@@ -588,62 +576,6 @@ void JATGL_GetMousePosition(JATGLwindow *handle, double *xpos, double *ypos)
 
 @end    // JATGL_ApplicationDelegate
 
-int _JATGLInit(void)
-{
-  @autoreleasepool
-  {
-    s_JATGL.helper = [[JATGL_Helper alloc] init];
-
-    [NSThread detachNewThreadSelector:@selector(doNothing:) toTarget:s_JATGL.helper withObject:nil];
-
-    [NSApplication sharedApplication];
-
-    s_JATGL.delegate = [[JATGL_ApplicationDelegate alloc] init];
-    assert(s_JATGL.delegate);
-
-    [NSApp setDelegate:s_JATGL.delegate];
-
-    NSEvent * (^block)(NSEvent *) = ^NSEvent *(NSEvent *event)
-    {
-      if([event modifierFlags] & NSEventModifierFlagCommand)
-        [[NSApp keyWindow] sendEvent:event];
-
-      return event;
-    };
-
-    s_JATGL.keyUpMonitor =
-        [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskKeyUp handler:block];
-
-    NSDictionary *defaults = @{ @"ApplePressAndHoldEnabled" : @NO };
-    [[NSUserDefaults standardUserDefaults] registerDefaults:defaults];
-
-    [[NSNotificationCenter defaultCenter]
-        addObserver:s_JATGL.helper
-           selector:@selector(selectedKeyboardInputSourceChanged:)
-               name:NSTextInputContextKeyboardSelectionDidChangeNotification
-             object:nil];
-
-    CreateKeyTables();
-
-    s_JATGL.eventSource = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
-    if(!s_JATGL.eventSource)
-      return JATGL_FALSE;
-
-    CGEventSourceSetLocalEventsSuppressionInterval(s_JATGL.eventSource, 0.0);
-
-    if(![[NSRunningApplication currentApplication] isFinishedLaunching])
-      [NSApp run];
-
-    [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
-
-    mach_timebase_info_data_t info;
-    mach_timebase_info(&info);
-    s_JATGL.timer_frequency = (info.denom * 1e9) / info.numer;
-
-    return JATGL_TRUE;
-  }
-}
-
 int JATGL_WindowShouldClose(JATGLwindow *handle)
 {
   JATGL_Window *window = (JATGL_Window *)handle;
@@ -687,18 +619,6 @@ int JATGL_GetMouseButtonState(JATGLwindow *handle, int button)
   return (int)window->mouseButtons[button];
 }
 
-void _JATGLInputChar(JATGL_Window *window, unsigned int codepoint, int mods, int plain)
-{
-  if(codepoint < 32 || (codepoint > 126 && codepoint < 160))
-    return;
-
-  if(plain)
-  {
-    if(window->characterCallback)
-      window->characterCallback((JATGLwindow *)window, codepoint);
-  }
-}
-
 int JATGL_Initialize(void)
 {
   if(s_JATGL.initialized)
@@ -706,11 +626,59 @@ int JATGL_Initialize(void)
 
   memset(&s_JATGL, 0, sizeof(s_JATGL));
 
-  if(!_JATGLInit())
+  @autoreleasepool
   {
-    Shutdown();
-    return JATGL_FALSE;
+    s_JATGL.helper = [[JATGL_Helper alloc] init];
+
+    [NSThread detachNewThreadSelector:@selector(doNothing:) toTarget:s_JATGL.helper withObject:nil];
+
+    [NSApplication sharedApplication];
+
+    s_JATGL.delegate = [[JATGL_ApplicationDelegate alloc] init];
+    assert(s_JATGL.delegate);
+
+    [NSApp setDelegate:s_JATGL.delegate];
+
+    NSEvent * (^block)(NSEvent *) = ^NSEvent *(NSEvent *event)
+    {
+      if([event modifierFlags] & NSEventModifierFlagCommand)
+        [[NSApp keyWindow] sendEvent:event];
+
+      return event;
+    };
+
+    s_JATGL.keyUpMonitor =
+        [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskKeyUp handler:block];
+
+    NSDictionary *defaults = @{ @"ApplePressAndHoldEnabled" : @NO };
+    [[NSUserDefaults standardUserDefaults] registerDefaults:defaults];
+
+    [[NSNotificationCenter defaultCenter]
+        addObserver:s_JATGL.helper
+           selector:@selector(selectedKeyboardInputSourceChanged:)
+               name:NSTextInputContextKeyboardSelectionDidChangeNotification
+             object:nil];
+
+    CreateKeyTables();
+
+    s_JATGL.eventSource = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+    if(!s_JATGL.eventSource)
+    {
+      Shutdown();
+      return JATGL_FALSE;
+    }
+
+    CGEventSourceSetLocalEventsSuppressionInterval(s_JATGL.eventSource, 0.0);
+
+    if(![[NSRunningApplication currentApplication] isFinishedLaunching])
+      [NSApp run];
+
+    [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
   }
+
+  mach_timebase_info_data_t info;
+  mach_timebase_info(&info);
+  s_JATGL.timer_frequency = (info.denom * 1e9) / info.numer;
 
   assert(s_JATGL.threadContext.allocated == JATGL_FALSE);
   int result = pthread_key_create(&s_JATGL.threadContext.key, NULL);
@@ -740,11 +708,14 @@ JATGLwindow *JATGL_NewWindow(int width, int height, const char *title)
   window->next = s_JATGL.windowListHead;
   s_JATGL.windowListHead = window;
 
-  if(!_JATGLNewWindow(window, width, height, title))
+  if(!CreateNativeWindow(window, width, height, title))
   {
     JATGL_DeleteWindow((JATGLwindow *)window);
     return NULL;
   }
+
+  CreateContextNSGL(window);
+
   return (JATGLwindow *)window;
 }
 
