@@ -13,7 +13,6 @@ typedef struct JATGL_Window
   id nsWindow;
   id delegate;
   id view;
-  id layer;
   int shouldClose;
   char mouseButtons[3];
   char keys[JATGL_KEY_LAST + 1];
@@ -24,6 +23,7 @@ typedef struct JATGL_Window
 
 typedef struct JATGLmodule
 {
+  short int keycodes[256];
   pthread_key_t contextTLSkey;
   int contextTLSAllocated;
   JATGL_Window *windowListHead;
@@ -32,7 +32,6 @@ typedef struct JATGLmodule
   id keyUpMonitor;
   uint64_t timerFrequency;
 
-  short int keycodes[256];
   int initialized;
 } JATGLmodule;
 
@@ -213,15 +212,6 @@ void JATGL_SwapBuffers(JATGLwindow *handle)
   InputMouseClick(window, (int)[event buttonNumber], JATGL_RELEASE);
 }
 
-- (void)viewDidChangeBackingProperties
-{
-  const NSRect contentRect = [window->view frame];
-  const NSRect fbRect = [window->view convertRectToBacking:contentRect];
-
-  if(window->layer)
-    [window->layer setContentsScale:[window->nsWindow backingScaleFactor]];
-}
-
 - (void)keyDown:(NSEvent *)event
 {
   const int key = TranslateKey([event keyCode]);
@@ -376,7 +366,6 @@ int JATGL_WindowShouldClose(JATGLwindow *handle)
 {
   JATGL_Window *window = (JATGL_Window *)handle;
   assert(window);
-
   return window->shouldClose;
 }
 
