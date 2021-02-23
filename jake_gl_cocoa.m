@@ -51,17 +51,46 @@ static void MakeContextCurrent(JATGL_Window *window)
 
 static void CreateKeyTables(void)
 {
-  int scancode;
-
   memset(s_JATGL.keycodes, -1, sizeof(s_JATGL.keycodes));
 
+  s_JATGL.keycodes[0x1D] = JATGL_KEY_0;
+  s_JATGL.keycodes[0x12] = JATGL_KEY_1;
+  s_JATGL.keycodes[0x13] = JATGL_KEY_2;
+  s_JATGL.keycodes[0x14] = JATGL_KEY_3;
+  s_JATGL.keycodes[0x15] = JATGL_KEY_4;
+  s_JATGL.keycodes[0x17] = JATGL_KEY_5;
+  s_JATGL.keycodes[0x16] = JATGL_KEY_6;
+  s_JATGL.keycodes[0x1A] = JATGL_KEY_7;
+  s_JATGL.keycodes[0x1C] = JATGL_KEY_8;
+  s_JATGL.keycodes[0x19] = JATGL_KEY_9;
+
+  s_JATGL.keycodes[0x00] = JATGL_KEY_A;
   s_JATGL.keycodes[0x0B] = JATGL_KEY_B;
   s_JATGL.keycodes[0x08] = JATGL_KEY_C;
+  s_JATGL.keycodes[0x02] = JATGL_KEY_D;
   s_JATGL.keycodes[0x0E] = JATGL_KEY_E;
+  s_JATGL.keycodes[0x03] = JATGL_KEY_F;
+  s_JATGL.keycodes[0x05] = JATGL_KEY_G;
+  s_JATGL.keycodes[0x04] = JATGL_KEY_H;
+  s_JATGL.keycodes[0x22] = JATGL_KEY_I;
+  s_JATGL.keycodes[0x26] = JATGL_KEY_J;
+  s_JATGL.keycodes[0x28] = JATGL_KEY_K;
+  s_JATGL.keycodes[0x25] = JATGL_KEY_L;
+  s_JATGL.keycodes[0x2E] = JATGL_KEY_M;
+  s_JATGL.keycodes[0x2D] = JATGL_KEY_N;
+  s_JATGL.keycodes[0x1F] = JATGL_KEY_O;
+  s_JATGL.keycodes[0x23] = JATGL_KEY_P;
+  s_JATGL.keycodes[0x0C] = JATGL_KEY_Q;
   s_JATGL.keycodes[0x0F] = JATGL_KEY_R;
+  s_JATGL.keycodes[0x01] = JATGL_KEY_S;
+  s_JATGL.keycodes[0x11] = JATGL_KEY_T;
+  s_JATGL.keycodes[0x20] = JATGL_KEY_U;
   s_JATGL.keycodes[0x09] = JATGL_KEY_V;
+  s_JATGL.keycodes[0x0D] = JATGL_KEY_W;
   s_JATGL.keycodes[0x07] = JATGL_KEY_X;
+  s_JATGL.keycodes[0x10] = JATGL_KEY_Y;
   s_JATGL.keycodes[0x06] = JATGL_KEY_Z;
+
   s_JATGL.keycodes[0x33] = JATGL_KEY_BACKSPACE;
   s_JATGL.keycodes[0x75] = JATGL_KEY_DELETE;
   s_JATGL.keycodes[0x7D] = JATGL_KEY_DOWN;
@@ -72,6 +101,38 @@ static void CreateKeyTables(void)
   s_JATGL.keycodes[0x79] = JATGL_KEY_PAGE_DOWN;
   s_JATGL.keycodes[0x74] = JATGL_KEY_PAGE_UP;
   s_JATGL.keycodes[0x7C] = JATGL_KEY_RIGHT;
+  s_JATGL.keycodes[0x30] = JATGL_KEY_TAB;
+  s_JATGL.keycodes[0x7E] = JATGL_KEY_UP;
+
+  s_JATGL.keycodes[0x27] = JATGL_KEY_APOSTROPHE;
+  s_JATGL.keycodes[0x2A] = JATGL_KEY_BACKSLASH;
+  s_JATGL.keycodes[0x2B] = JATGL_KEY_COMMA;
+  s_JATGL.keycodes[0x18] = JATGL_KEY_EQUAL;
+  s_JATGL.keycodes[0x32] = JATGL_KEY_GRAVE_ACCENT;
+  s_JATGL.keycodes[0x21] = JATGL_KEY_LEFT_BRACKET;
+  s_JATGL.keycodes[0x1B] = JATGL_KEY_MINUS;
+  s_JATGL.keycodes[0x2F] = JATGL_KEY_PERIOD;
+  s_JATGL.keycodes[0x1E] = JATGL_KEY_RIGHT_BRACKET;
+  s_JATGL.keycodes[0x29] = JATGL_KEY_SEMICOLON;
+  s_JATGL.keycodes[0x2C] = JATGL_KEY_SLASH;
+
+  s_JATGL.keycodes[0x33] = JATGL_KEY_BACKSPACE;
+  s_JATGL.keycodes[0x75] = JATGL_KEY_DELETE;
+  s_JATGL.keycodes[0x7D] = JATGL_KEY_DOWN;
+  s_JATGL.keycodes[0x77] = JATGL_KEY_END;
+  s_JATGL.keycodes[0x24] = JATGL_KEY_ENTER;
+  s_JATGL.keycodes[0x35] = JATGL_KEY_ESCAPE;
+  s_JATGL.keycodes[0x73] = JATGL_KEY_HOME;
+  s_JATGL.keycodes[0x72] = JATGL_KEY_INSERT;
+  s_JATGL.keycodes[0x7B] = JATGL_KEY_LEFT;
+  s_JATGL.keycodes[0x3B] = JATGL_KEY_LEFT_CONTROL;
+  s_JATGL.keycodes[0x38] = JATGL_KEY_LEFT_SHIFT;
+  s_JATGL.keycodes[0x79] = JATGL_KEY_PAGE_DOWN;
+  s_JATGL.keycodes[0x74] = JATGL_KEY_PAGE_UP;
+  s_JATGL.keycodes[0x7C] = JATGL_KEY_RIGHT;
+  s_JATGL.keycodes[0x3E] = JATGL_KEY_RIGHT_CONTROL;
+  s_JATGL.keycodes[0x3C] = JATGL_KEY_RIGHT_SHIFT;
+  s_JATGL.keycodes[0x31] = JATGL_KEY_SPACE;
   s_JATGL.keycodes[0x30] = JATGL_KEY_TAB;
   s_JATGL.keycodes[0x7E] = JATGL_KEY_UP;
 }
@@ -249,6 +310,8 @@ void JATGL_SwapBuffers(JATGLwindow *handle)
 {
   const int key = TranslateKey([event keyCode]);
   InputKey(window, key, JATGL_RELEASE);
+  if(window->characterCallback)
+    window->characterCallback((JATGLwindow *)window, key);
 }
 
 @end
