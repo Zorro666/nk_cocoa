@@ -643,7 +643,6 @@ int JATGL_Initialize(void)
     {
       if([event modifierFlags] & NSEventModifierFlagCommand)
         [[NSApp keyWindow] sendEvent:event];
-
       return event;
     };
 

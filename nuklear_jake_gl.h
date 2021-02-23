@@ -10,8 +10,8 @@
  *
  * ===============================================================
  */
-#ifndef NK_JAKE_GL3_H_
-#define NK_JAKE_GL3_H_
+#ifndef NK_JAKE_GL_H_
+#define NK_JAKE_GL_H_
 
 #include <OpenGL/gl3.h>
 #include "jake_gl.h"
@@ -94,7 +94,7 @@ static struct nk_jake
   double last_button_click;
   int is_double_click_down;
   struct nk_vec2 double_click_pos;
-} jake;
+} nk_jake;
 
 #ifdef __APPLE__
 #define NK_SHADER_VERSION "#version 150\n"
@@ -127,7 +127,7 @@ NK_API void nk_jake_device_create(void)
       "   Out_Color = Frag_Color * texture(Texture, Frag_UV.st);\n"
       "}\n";
 
-  struct nk_jake_device *dev = &jake.ogl;
+  struct nk_jake_device *dev = &nk_jake.ogl;
   nk_buffer_init_default(&dev->cmds);
   dev->prog = glCreateProgram();
   dev->vert_shdr = glCreateShader(GL_VERTEX_SHADER);
@@ -184,7 +184,7 @@ NK_API void nk_jake_device_create(void)
 
 NK_INTERN void nk_jake_device_upload_atlas(const void *image, int width, int height)
 {
-  struct nk_jake_device *dev = &jake.ogl;
+  struct nk_jake_device *dev = &nk_jake.ogl;
   glGenTextures(1, &dev->font_tex);
   glBindTexture(GL_TEXTURE_2D, dev->font_tex);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -195,7 +195,7 @@ NK_INTERN void nk_jake_device_upload_atlas(const void *image, int width, int hei
 
 NK_API void nk_jake_device_destroy(void)
 {
-  struct nk_jake_device *dev = &jake.ogl;
+  struct nk_jake_device *dev = &nk_jake.ogl;
   glDetachShader(dev->prog, dev->vert_shdr);
   glDetachShader(dev->prog, dev->frag_shdr);
   glDeleteShader(dev->vert_shdr);
@@ -209,7 +209,7 @@ NK_API void nk_jake_device_destroy(void)
 
 NK_API void nk_jake_render(enum nk_anti_aliasing AA, int max_vertex_buffer, int max_element_buffer)
 {
-  struct nk_jake_device *dev = &jake.ogl;
+  struct nk_jake_device *dev = &nk_jake.ogl;
   struct nk_buffer vbuf, ebuf;
   GLfloat ortho[4][4] = {
       {2.0f, 0.0f, 0.0f, 0.0f},
@@ -217,8 +217,8 @@ NK_API void nk_jake_render(enum nk_anti_aliasing AA, int max_vertex_buffer, int 
       {0.0f, 0.0f, -1.0f, 0.0f},
       {-1.0f, 1.0f, 0.0f, 1.0f},
   };
-  ortho[0][0] /= (GLfloat)jake.width;
-  ortho[1][1] /= (GLfloat)jake.height;
+  ortho[0][0] /= (GLfloat)nk_jake.width;
+  ortho[1][1] /= (GLfloat)nk_jake.height;
 
   /* setup global state */
   glEnable(GL_BLEND);
@@ -233,7 +233,7 @@ NK_API void nk_jake_render(enum nk_anti_aliasing AA, int max_vertex_buffer, int 
   glUseProgram(dev->prog);
   glUniform1i(dev->uniform_tex, 0);
   glUniformMatrix4fv(dev->uniform_proj, 1, GL_FALSE, &ortho[0][0]);
-  glViewport(0, 0, (GLsizei)jake.display_width, (GLsizei)jake.display_height);
+  glViewport(0, 0, (GLsizei)nk_jake.display_width, (GLsizei)nk_jake.display_height);
   {
     /* convert from command queue into draw list and draw to screen */
     const struct nk_draw_command *cmd;
@@ -274,25 +274,26 @@ NK_API void nk_jake_render(enum nk_anti_aliasing AA, int max_vertex_buffer, int 
       /* setup buffers to load vertices and elements */
       nk_buffer_init_fixed(&vbuf, vertices, (size_t)max_vertex_buffer);
       nk_buffer_init_fixed(&ebuf, elements, (size_t)max_element_buffer);
-      nk_convert(&jake.ctx, &dev->cmds, &vbuf, &ebuf, &config);
+      nk_convert(&nk_jake.ctx, &dev->cmds, &vbuf, &ebuf, &config);
     }
     glUnmapBuffer(GL_ARRAY_BUFFER);
     glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
 
     /* iterate over and execute each draw command */
-    nk_draw_foreach(cmd, &jake.ctx, &dev->cmds)
+    nk_draw_foreach(cmd, &nk_jake.ctx, &dev->cmds)
     {
       if(!cmd->elem_count)
         continue;
       glBindTexture(GL_TEXTURE_2D, (GLuint)cmd->texture.id);
-      glScissor(
-          (GLint)(cmd->clip_rect.x * jake.fb_scale.x),
-          (GLint)((jake.height - (GLint)(cmd->clip_rect.y + cmd->clip_rect.h)) * jake.fb_scale.y),
-          (GLint)(cmd->clip_rect.w * jake.fb_scale.x), (GLint)(cmd->clip_rect.h * jake.fb_scale.y));
+      glScissor((GLint)(cmd->clip_rect.x * nk_jake.fb_scale.x),
+                (GLint)((nk_jake.height - (GLint)(cmd->clip_rect.y + cmd->clip_rect.h)) *
+                        nk_jake.fb_scale.y),
+                (GLint)(cmd->clip_rect.w * nk_jake.fb_scale.x),
+                (GLint)(cmd->clip_rect.h * nk_jake.fb_scale.y));
       glDrawElements(GL_TRIANGLES, (GLsizei)cmd->elem_count, GL_UNSIGNED_SHORT, offset);
       offset += cmd->elem_count;
     }
-    nk_clear(&jake.ctx);
+    nk_clear(&nk_jake.ctx);
   }
 
   /* default OpenGL state */
@@ -307,16 +308,16 @@ NK_API void nk_jake_render(enum nk_anti_aliasing AA, int max_vertex_buffer, int 
 NK_API void nk_jake_char_callback(JATGLwindow *win, unsigned int codepoint)
 {
   (void)win;
-  if(jake.text_len < NK_JAKE_TEXT_MAX)
-    jake.text[jake.text_len++] = codepoint;
+  if(nk_jake.text_len < NK_JAKE_TEXT_MAX)
+    nk_jake.text[nk_jake.text_len++] = codepoint;
 }
 
 NK_API void nk_jake_scroll_callback(JATGLwindow *win, double xoff, double yoff)
 {
   (void)win;
   (void)xoff;
-  jake.scroll.x += (float)xoff;
-  jake.scroll.y += (float)yoff;
+  nk_jake.scroll.x += (float)xoff;
+  nk_jake.scroll.y += (float)yoff;
 }
 
 NK_API void nk_jake_mouse_button_callback(JATGLwindow *window, int button, int action, int mods)
@@ -327,76 +328,77 @@ NK_API void nk_jake_mouse_button_callback(JATGLwindow *window, int button, int a
   JATGL_GetMousePosition(window, &x, &y);
   if(action == JATGL_PRESS)
   {
-    double dt = JATGL_GetTime() - jake.last_button_click; if(dt > NK_JAKE_DOUBLE_CLICK_LO && dt < NK_JAKE_DOUBLE_CLICK_HI)
+    double dt = JATGL_GetTime() - nk_jake.last_button_click;
+    if(dt > NK_JAKE_DOUBLE_CLICK_LO && dt < NK_JAKE_DOUBLE_CLICK_HI)
     {
-      jake.is_double_click_down = nk_true;
-      jake.double_click_pos = nk_vec2((float)x, (float)y);
+      nk_jake.is_double_click_down = nk_true;
+      nk_jake.double_click_pos = nk_vec2((float)x, (float)y);
     }
-    jake.last_button_click = JATGL_GetTime();
+    nk_jake.last_button_click = JATGL_GetTime();
   }
   else
-    jake.is_double_click_down = nk_false;
+    nk_jake.is_double_click_down = nk_false;
 }
 
 NK_API struct nk_context *nk_jake_init(JATGLwindow *win, enum nk_jake_init_state init_state)
 {
-  jake.win = win;
+  nk_jake.win = win;
   if(init_state == NK_JAKE_INSTALL_CALLBACKS)
   {
     JATGL_SetCharacterCallback(win, nk_jake_char_callback);
     JATGL_SetMouseButtonCallback(win, nk_jake_mouse_button_callback);
   }
-  nk_init_default(&jake.ctx, 0);
-  jake.ctx.clip.userdata = nk_handle_ptr(0);
-  jake.last_button_click = 0;
+  nk_init_default(&nk_jake.ctx, 0);
+  nk_jake.ctx.clip.userdata = nk_handle_ptr(0);
+  nk_jake.last_button_click = 0;
   nk_jake_device_create();
 
-  jake.is_double_click_down = nk_false;
-  jake.double_click_pos = nk_vec2(0, 0);
+  nk_jake.is_double_click_down = nk_false;
+  nk_jake.double_click_pos = nk_vec2(0, 0);
 
-  return &jake.ctx;
+  return &nk_jake.ctx;
 }
 
 NK_API void nk_jake_font_stash_begin(struct nk_font_atlas **atlas)
 {
-  nk_font_atlas_init_default(&jake.atlas);
-  nk_font_atlas_begin(&jake.atlas);
-  *atlas = &jake.atlas;
+  nk_font_atlas_init_default(&nk_jake.atlas);
+  nk_font_atlas_begin(&nk_jake.atlas);
+  *atlas = &nk_jake.atlas;
 }
 
 NK_API void nk_jake_font_stash_end(void)
 {
   const void *image;
   int w, h;
-  image = nk_font_atlas_bake(&jake.atlas, &w, &h, NK_FONT_ATLAS_RGBA32);
+  image = nk_font_atlas_bake(&nk_jake.atlas, &w, &h, NK_FONT_ATLAS_RGBA32);
   nk_jake_device_upload_atlas(image, w, h);
-  nk_font_atlas_end(&jake.atlas, nk_handle_id((int)jake.ogl.font_tex), &jake.ogl.null);
-  if(jake.atlas.default_font)
-    nk_style_set_font(&jake.ctx, &jake.atlas.default_font->handle);
+  nk_font_atlas_end(&nk_jake.atlas, nk_handle_id((int)nk_jake.ogl.font_tex), &nk_jake.ogl.null);
+  if(nk_jake.atlas.default_font)
+    nk_style_set_font(&nk_jake.ctx, &nk_jake.atlas.default_font->handle);
 }
 
 NK_API void nk_jake_new_frame(void)
 {
   int i;
   double x, y;
-  struct nk_context *ctx = &jake.ctx;
-  JATGLwindow *win = jake.win;
+  struct nk_context *ctx = &nk_jake.ctx;
+  JATGLwindow *win = nk_jake.win;
 
-  JATGL_GetWindowSize(win, &jake.width, &jake.height);
-  JATGL_GetFrameBufferSize(win, &jake.display_width, &jake.display_height);
-  jake.fb_scale.x = (float)jake.display_width / (float)jake.width;
-  jake.fb_scale.y = (float)jake.display_height / (float)jake.height;
+  JATGL_GetWindowSize(win, &nk_jake.width, &nk_jake.height);
+  JATGL_GetFrameBufferSize(win, &nk_jake.display_width, &nk_jake.display_height);
+  nk_jake.fb_scale.x = (float)nk_jake.display_width / (float)nk_jake.width;
+  nk_jake.fb_scale.y = (float)nk_jake.display_height / (float)nk_jake.height;
 
   nk_input_begin(ctx);
-  for(i = 0; i < jake.text_len; ++i)
-    nk_input_unicode(ctx, jake.text[i]);
+  for(i = 0; i < nk_jake.text_len; ++i)
+    nk_input_unicode(ctx, nk_jake.text[i]);
 
 #ifdef NK_JAKE_GL_MOUSE_GRABBING
   /* optional grabbing behavior */
   if(ctx->input.mouse.grab)
-    jakeSetInputMode(jake.win, JAKE_CURSOR, JAKE_CURSOR_HIDDEN);
+    jakeSetInputMode(nk_jake.win, JAKE_CURSOR, JAKE_CURSOR_HIDDEN);
   else if(ctx->input.mouse.ungrab)
-    jakeSetInputMode(jake.win, JAKE_CURSOR, JAKE_CURSOR_NORMAL);
+    jakeSetInputMode(nk_jake.win, JAKE_CURSOR, JAKE_CURSOR_NORMAL);
 #endif
 
   nk_input_key(ctx, NK_KEY_DEL, JATGL_GetKeyState(win, JATGL_KEY_DELETE) == JATGL_PRESS);
@@ -443,7 +445,7 @@ NK_API void nk_jake_new_frame(void)
 #ifdef NK_JAKE_GL_MOUSE_GRABBING
   if(ctx->input.mouse.grabbed)
   {
-    jakeSetCursorPos(jake.win, ctx->input.mouse.prev.x, ctx->input.mouse.prev.y);
+    jakeSetCursorPos(nk_jake.win, ctx->input.mouse.prev.x, ctx->input.mouse.prev.y);
     ctx->input.mouse.pos.x = ctx->input.mouse.prev.x;
     ctx->input.mouse.pos.y = ctx->input.mouse.prev.y;
   }
@@ -454,21 +456,21 @@ NK_API void nk_jake_new_frame(void)
                   JATGL_GetMouseButtonState(win, JATGL_MOUSE_BUTTON_MIDDLE) == JATGL_PRESS);
   nk_input_button(ctx, NK_BUTTON_RIGHT, (int)x, (int)y,
                   JATGL_GetMouseButtonState(win, JATGL_MOUSE_BUTTON_RIGHT) == JATGL_PRESS);
-  nk_input_button(ctx, NK_BUTTON_DOUBLE, (int)jake.double_click_pos.x, (int)jake.double_click_pos.y,
-                  jake.is_double_click_down);
-  nk_input_scroll(ctx, jake.scroll);
-  nk_input_end(&jake.ctx);
-  jake.text_len = 0;
-  jake.scroll = nk_vec2(0, 0);
+  nk_input_button(ctx, NK_BUTTON_DOUBLE, (int)nk_jake.double_click_pos.x,
+                  (int)nk_jake.double_click_pos.y, nk_jake.is_double_click_down);
+  nk_input_scroll(ctx, nk_jake.scroll);
+  nk_input_end(&nk_jake.ctx);
+  nk_jake.text_len = 0;
+  nk_jake.scroll = nk_vec2(0, 0);
 }
 
 NK_API
 void nk_jake_shutdown(void)
 {
-  nk_font_atlas_clear(&jake.atlas);
-  nk_free(&jake.ctx);
+  nk_font_atlas_clear(&nk_jake.atlas);
+  nk_free(&nk_jake.ctx);
   nk_jake_device_destroy();
-  memset(&jake, 0, sizeof(jake));
+  memset(&nk_jake, 0, sizeof(nk_jake));
 }
 
 #endif
