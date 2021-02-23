@@ -61,8 +61,10 @@ void JATGL_Poll(void);
 
 void JATGL_GetMousePosition(JATGLwindow *handle, double *xpos, double *ypos);
 double JATGL_GetTime(void);
-void JATGL_SetCharacterCallback(JATGLwindow *window, JATGLCharacterCallback callback);
-void JATGL_SetMouseButtonCallback(JATGLwindow *window, JATGLMouseButtonCallback callback);
+void JATGL_SetCharacterCallback(JATGLwindow *window,
+                                JATGLCharacterCallback callback);
+void JATGL_SetMouseButtonCallback(JATGLwindow *window,
+                                  JATGLMouseButtonCallback callback);
 int JATGL_GetKeyState(JATGLwindow *window, int key);
 int JATGL_GetMouseButtonState(JATGLwindow *window, int button);
 
@@ -70,4 +72,4 @@ int JATGL_GetMouseButtonState(JATGLwindow *window, int button);
 }
 #endif
 
-#endif    // #ifndef __JAKE_GL_H
+#endif // #ifndef __JAKE_GL_H
