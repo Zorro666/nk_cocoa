@@ -37,7 +37,7 @@ typedef struct JATGL_GlobalState
 
 static JATGL_GlobalState s_JATGL = {0};
 
-static void MakeContextCurrent(JATGL_Window *window)
+static void SetCurrentContext(JATGL_Window *window)
 {
   @autoreleasepool
   {
@@ -49,6 +49,12 @@ static void MakeContextCurrent(JATGL_Window *window)
     assert(s_JATGL.contextTLSAllocated);
     pthread_setspecific(s_JATGL.contextTLSkey, window);
   }
+}
+
+static JATGL_Window *GetCurrentContext()
+{
+  assert(s_JATGL.contextTLSAllocated);
+  return pthread_getspecific(s_JATGL.contextTLSkey);
 }
 
 static void CreateKeyTables(void)
@@ -741,7 +747,7 @@ JATGLwindow *JATGL_NewWindow(int width, int height, const char *title)
   [NSApp activateIgnoringOtherApps:YES];
   [window->nsWindow makeKeyAndOrderFront:nil];
 
-  MakeContextCurrent(window);
+  SetCurrentContext(window);
 
   return (JATGLwindow *)window;
 }
@@ -757,9 +763,8 @@ void JATGL_DeleteWindow(JATGLwindow *handle)
   window->mouseButtonCallback = NULL;
   window->scrollCallback = NULL;
 
-  assert(s_JATGL.contextTLSAllocated);
-  if(window == pthread_getspecific(s_JATGL.contextTLSkey))
-    MakeContextCurrent(NULL);
+  if(window == GetCurrentContext())
+    SetCurrentContext(NULL);
 
   @autoreleasepool
   {
@@ -790,4 +795,14 @@ void JATGL_DeleteWindow(JATGLwindow *handle)
   *prev = window->next;
 
   free(window);
+}
+
+JATGLwindow *JATGL_GetCurrentContext(void)
+{
+  return (JATGLwindow *)GetCurrentContext();
+}
+
+void JATGL_SetCurrentContext(JATGLwindow *window)
+{
+  SetCurrentContext((JATGL_Window *)window);
 }

@@ -100,22 +100,28 @@ typedef void (*JATGLScrollCallback)(JATGLwindow *, double, double);
 
 int JATGL_Initialize(void);
 void JATGL_Shutdown(void);
+void JATGL_Poll(void);
+double JATGL_GetTime(void);
+
 void JATGL_GetFrameBufferSize(JATGLwindow *window, int *width, int *height);
+void JATGL_SwapBuffers(JATGLwindow *window);
+
 JATGLwindow *JATGL_NewWindow(int width, int height, const char *title);
 void JATGL_DeleteWindow(JATGLwindow *window);
 int JATGL_WindowShouldClose(JATGLwindow *window);
 void JATGL_GetWindowSize(JATGLwindow *window, int *width, int *height);
-void JATGL_SwapBuffers(JATGLwindow *window);
-void JATGL_Poll(void);
+
+JATGLwindow *JATGL_GetCurrentContext(void);
+void JATGL_SetCurrentContext(JATGLwindow *window);
 
 void JATGL_GetMousePosition(JATGLwindow *handle, double *xpos, double *ypos);
-double JATGL_GetTime(void);
+int JATGL_GetMouseButtonState(JATGLwindow *window, int button);
+void JATGL_SetMouseButtonCallback(JATGLwindow *window, JATGLMouseButtonCallback callback);
+void JATGL_SetScrollCallback(JATGLwindow *window, JATGLScrollCallback callback);
+
+int JATGL_GetKeyState(JATGLwindow *window, int key);
 void JATGL_SetCharacterCallback(JATGLwindow *window, JATGLCharacterCallback callback);
 void JATGL_SetKeyCallback(JATGLwindow *window, JATGLKeyCallback callback);
-void JATGL_SetScrollCallback(JATGLwindow *window, JATGLScrollCallback callback);
-void JATGL_SetMouseButtonCallback(JATGLwindow *window, JATGLMouseButtonCallback callback);
-int JATGL_GetKeyState(JATGLwindow *window, int key);
-int JATGL_GetMouseButtonState(JATGLwindow *window, int button);
 
 #ifdef __cplusplus
 }
