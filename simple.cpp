@@ -1,4 +1,4 @@
-#include "jake_gl.h"
+#include "apple_cocoa.h"
 
 #include <OpenGL/gl3.h>
 #include <stddef.h>
@@ -57,9 +57,9 @@ static const char *fragment_shader_text =
     "}\n";
 
 static int closeWindow = 0;
-void KeyCallback(JATGLwindow *window, int key, int action)
+void KeyCallback(COCOAwindow *window, int key, int action)
 {
-  if((key == JATGL_KEY_ESCAPE) && (action = JATGL_PRESS))
+  if((key == COCOA_KEY_ESCAPE) && (action = COCOA_PRESS))
   {
     closeWindow = 1;
   }
@@ -67,16 +67,18 @@ void KeyCallback(JATGLwindow *window, int key, int action)
 
 int main(void)
 {
-  if(!JATGL_Initialize())
+  if(!COCOA_Initialize())
     exit(EXIT_FAILURE);
 
-  JATGLwindow *window = JATGL_NewWindow(640, 480, "Simple OpenGL Triangle");
+  COCOAwindow *window = COCOA_NewWindow(640, 480, "Simple OpenGL Triangle");
   if(!window)
   {
-    JATGL_Shutdown();
+    COCOA_Shutdown();
     exit(EXIT_FAILURE);
   }
-  JATGL_SetKeyCallback(window, KeyCallback);
+  COCOAcontext *context = COCOA_NewGLContext(window);
+  COCOA_SetGLContext(window, context);
+  COCOA_SetKeyCallback(window, KeyCallback);
 
   GLuint vertex_buffer;
   glGenBuffers(1, &vertex_buffer);
@@ -109,31 +111,31 @@ int main(void)
   glVertexAttribPointer(vcol_location, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 5,
                         (void *)(sizeof(float) * 2));
 
-  while(!JATGL_WindowShouldClose(window) && !closeWindow)
+  while(!COCOA_WindowShouldClose(window) && !closeWindow)
   {
     int width, height;
     float mvp[16];
 
-    JATGL_GetFrameBufferSize(window, &width, &height);
+    COCOA_GetFrameBufferSize(window, &width, &height);
     const float ratio = width / (float)height;
 
     glViewport(0, 0, width, height);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    rotate_Z(mvp, (float)JATGL_GetTime());
+    rotate_Z(mvp, (float)COCOA_GetTime());
 
     glUseProgram(program);
     glUniformMatrix4fv(mvp_location, 1, GL_FALSE, (const GLfloat *)&mvp);
     glBindVertexArray(vertex_array);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
-    JATGL_SwapBuffers(window);
-    JATGL_Poll();
+    COCOA_SwapBuffers(window);
+    COCOA_Poll();
   }
 
-  JATGL_DeleteWindow(window);
+  COCOA_DeleteWindow(window);
 
-  JATGL_Shutdown();
+  COCOA_Shutdown();
   exit(EXIT_SUCCESS);
 }
 

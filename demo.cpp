@@ -19,10 +19,10 @@
 #define NK_INCLUDE_DEFAULT_FONT
 #define NK_IMPLEMENTATION
 #define NK_KEYSTATE_BASED_INPUT
-#define NK_JAKE_GL_IMPLEMENTATION
+#define NK_COCOA_IMPLEMENTATION
 #include <OpenGL/gl3.h>
 #include "nuklear.h"
-#include "nuklear_jake_gl.h"
+#include "nuklear_cocoa.h"
 
 #define WINDOW_WIDTH 1200
 #define WINDOW_HEIGHT 800
@@ -77,24 +77,19 @@ int main(void)
 
   width = 1024;
   height = 1024;
-  JATGL_Initialize();
-  JATGLwindow *window = JATGL_NewWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Nuklear Demo");
+  COCOA_Initialize();
+  COCOAwindow *window = COCOA_NewWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Nuklear Demo");
+  COCOAcontext *context = COCOA_NewGLContext(window);
+  COCOA_SetGLContext(window, context);
   /* OpenGL */
   glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
-  /*
-  glewExperimental = 1;
-  if (glewInit() != GLEW_OK) {
-    fprintf(stderr, "Failed to setup GLEW\n");
-    exit(1);
-  }
-  */
 
-  ctx = nk_jake_init(window, NK_JAKE_INSTALL_CALLBACKS);
+  ctx = nk_cocoa_init(window, NK_COCOA_INSTALL_CALLBACKS);
   /* Load Fonts: if none of these are loaded a default font will be used  */
   /* Load Cursor: if you uncomment cursor loading please hide the cursor */
   {
     struct nk_font_atlas *atlas;
-    nk_jake_font_stash_begin(&atlas);
+    nk_cocoa_font_stash_begin(&atlas);
     /*struct nk_font *droid = nk_font_atlas_add_from_file(atlas,
      * "../../../extra_font/DroidSans.ttf", 14, 0);*/
     /*struct nk_font *roboto = nk_font_atlas_add_from_file(atlas,
@@ -107,7 +102,7 @@ int main(void)
      * "../../../extra_font/ProggyTiny.ttf", 10, 0);*/
     /*struct nk_font *cousine = nk_font_atlas_add_from_file(atlas,
      * "../../../extra_font/Cousine-Regular.ttf", 13, 0);*/
-    nk_jake_font_stash_end();
+    nk_cocoa_font_stash_end();
   /*nk_style_load_all_cursors(ctx, atlas->cursors);*/
     /*nk_style_set_font(ctx, &droid->handle);*/}
 
@@ -119,10 +114,10 @@ int main(void)
 #endif
 
   bg.r = 0.10f, bg.g = 0.18f, bg.b = 0.24f, bg.a = 1.0f;
-  while(!JATGL_WindowShouldClose(window))
+  while(!COCOA_WindowShouldClose(window))
   {
-    JATGL_Poll();
-    nk_jake_new_frame();
+    COCOA_Poll();
+    nk_cocoa_new_frame();
 
     /* GUI */
     if(nk_begin(ctx, "Demo", nk_rect(50, 50, 230, 250), NK_WINDOW_BORDER | NK_WINDOW_MOVABLE |
@@ -179,18 +174,18 @@ int main(void)
     /* ----------------------------------------- */
 
     /* Draw */
-    JATGL_GetFrameBufferSize(window, &width, &height);
+    COCOA_GetFrameBufferSize(window, &width, &height);
     glViewport(0, 0, width, height);
     glClear(GL_COLOR_BUFFER_BIT);
     glClearColor(bg.r, bg.g, bg.b, bg.a);
-    /* IMPORTANT: `nk_jake_render` modifies some global OpenGL state
+    /* IMPORTANT: `nk_cocoa_render` modifies some global OpenGL state
      * with blending, scissor, face culling, depth test and viewport and
      * defaults everything back into a default state.
      * Make sure to either a.) save and restore or b.) reset your own state after
      * rendering the UI. */
-    nk_jake_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
-    JATGL_SwapBuffers(window);
+    nk_cocoa_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
+    COCOA_SwapBuffers(window);
   }
-  nk_jake_shutdown();
+  nk_cocoa_shutdown();
   return 0;
 }

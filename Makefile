@@ -5,10 +5,10 @@ SIMPLE = simple
 CFLAGS += -DGL_SILENCE_DEPRECATION
 CFLAGS += $(shell pkg-config --cflags glew)
 
-SRC = jake_gl_cocoa.m
-HEADERS = jake_gl.h
+SRC = apple_cocoa.m
+HEADERS = apple_cocoa.h
 
-LIBS := -framework OpenGL -framework Cocoa
+LIBS := -framework OpenGL -framework Cocoa -framework Quartz
 
 all: demo simple
 
