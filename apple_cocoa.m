@@ -263,6 +263,12 @@ void COCOA_SwapBuffers(COCOAwindow *handle)
   return self;
 }
 
+- (void)windowDidResize:(NSNotification *)notification
+{
+  if(window->glContext)
+    [window->glContext->nsglObject update];
+}
+
 - (BOOL)windowShouldClose:(id)sender
 {
   window->shouldClose = COCOA_TRUE;
@@ -763,12 +769,12 @@ COCOAwindow *COCOA_NewWindow(int width, int height, const char *title)
 
   contentRect = NSMakeRect(0, 0, width, height);
 
-  window->nsWindow =
-      [[NSWindow alloc] initWithContentRect:contentRect
-                                  styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
-                                            NSWindowStyleMaskMiniaturizable
-                                    backing:NSBackingStoreBuffered
-                                      defer:NO];
+  window->nsWindow = [[NSWindow alloc]
+      initWithContentRect:contentRect
+                styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
+                          NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable
+                  backing:NSBackingStoreBuffered
+                    defer:NO];
 
   assert(window->nsWindow);
 

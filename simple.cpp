@@ -91,6 +91,7 @@ int main(void)
 
   const GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
   glShaderSource(fragment_shader, 1, &fragment_shader_text, NULL);
+
   glCompileShader(fragment_shader);
 
   const GLuint program = glCreateProgram();
@@ -110,14 +111,12 @@ int main(void)
   glEnableVertexAttribArray(vcol_location);
   glVertexAttribPointer(vcol_location, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 5,
                         (void *)(sizeof(float) * 2));
-
   while(!COCOA_WindowShouldClose(window) && !closeWindow)
   {
     int width, height;
     float mvp[16];
 
     COCOA_GetFrameBufferSize(window, &width, &height);
-    const float ratio = width / (float)height;
 
     glViewport(0, 0, width, height);
     glClear(GL_COLOR_BUFFER_BIT);
