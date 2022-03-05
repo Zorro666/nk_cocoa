@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <cmath>
 
 static inline void rotate_Z(float *M, float angle)
 {

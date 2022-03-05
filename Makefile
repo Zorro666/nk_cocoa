@@ -3,9 +3,9 @@ TARGETS += simple
 TARGETS += checkerboard
 
 # Flags
-CFLAGS += -DGL_SILENCE_DEPRECATION
+#CFLAGS += -DGL_SILENCE_DEPRECATION -mmacosx-version-min=10.15 -arch x86_64
+CFLAGS += -DGL_SILENCE_DEPRECATION -mmacosx-version-min=12.00 -arch arm64
 CFLAGS += $(shell pkg-config --cflags glew)
-CFLAGS += -target arm64-apple-macos11
 
 SRC = apple_cocoa.m
 HEADERS = apple_cocoa.h

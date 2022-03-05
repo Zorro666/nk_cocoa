@@ -526,11 +526,38 @@ void COCOA_GetFrameBufferSize(COCOAwindow *handle, int *width, int *height)
   {
     const NSRect contentRect = [window->view frame];
     const NSRect fbRect = [window->view convertRectToBacking:contentRect];
+    int viewWidth = (int)fbRect.size.width;
+    int viewHeight = (int)fbRect.size.height;
+
+    CALayer *layer = [window->view layer];
+    int layerWidth = layer.bounds.size.width * layer.contentsScale;
+    int layerHeight = layer.bounds.size.height * layer.contentsScale;
+
+    if((layerWidth != viewWidth) || (layerHeight != viewHeight))
+    {
+      fprintf(stderr, "Different width %d:%d height %d:%d\n", layerWidth, viewWidth, layerHeight,
+              viewHeight);
+      if(window->glContext)
+        [window->glContext->nsglObject update];
+      layerWidth = layer.bounds.size.width * layer.contentsScale;
+      layerHeight = layer.bounds.size.height * layer.contentsScale;
+      fprintf(stderr, "Now width %d:%d height %d:%d\n", layerWidth, viewWidth, layerHeight,
+              viewHeight);
+    }
+    static int oldW = 0;
+    static int oldH = 0;
+    if((oldW != layerWidth) || (oldH != layerHeight))
+    {
+      fprintf(stderr, "New width %d:%d height %d:%d\n", layerWidth, viewWidth, layerHeight,
+              viewHeight);
+      oldW = layerWidth;
+      oldH = layerHeight;
+    }
 
     if(width)
-      *width = (int)fbRect.size.width;
+      *width = layerWidth;
     if(height)
-      *height = (int)fbRect.size.height;
+      *height = layerHeight;
   }
 }
 
