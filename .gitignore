@@ -1,5 +1,8 @@
 bin/
 *.swp
+*.o
+.DS_Store
 /demo
 /simple
 /checkerboard
+/metaltriangle

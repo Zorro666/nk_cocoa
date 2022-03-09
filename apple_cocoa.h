@@ -126,7 +126,8 @@ int COCOA_GetKeyState(COCOAwindow *window, int key);
 void COCOA_SetCharacterCallback(COCOAwindow *window, COCOACharacterCallback callback);
 void COCOA_SetKeyCallback(COCOAwindow *window, COCOAKeyCallback callback);
 
-void *COCOA_SwitchLayerToMetal(COCOAwindow *window);
+void *COCOA_SwitchLayerToMetal(COCOAwindow *window, void *metalDevice);
+void *COCOA_NextDrawable(COCOAwindow *handle);
 
 #ifdef __cplusplus
 }

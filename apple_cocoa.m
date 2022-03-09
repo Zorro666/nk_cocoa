@@ -889,14 +889,36 @@ void COCOA_SetGLContext(COCOAwindow *handle, COCOAcontext *ctx)
   SetCurrentGLContext(window, context);
 }
 
-void *COCOA_SwitchLayerToMetal(COCOAwindow *handle)
+void *COCOA_SwitchLayerToMetal(COCOAwindow *handle, void *metalDevice)
 {
   COCOA_Window *window = (COCOA_Window *)handle;
   @autoreleasepool
   {
-    window->layer = [CAMetalLayer layer];
+    CAMetalLayer *metalLayer = [CAMetalLayer layer];
+    metalLayer.device = (__bridge id<MTLDevice>)metalDevice;
+    metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+    metalLayer.framebufferOnly = YES;
+
+    window->layer = metalLayer;
     [window->view setLayer:window->layer];
     [window->view setWantsLayer:YES];
   }
-  return window->view;
+  return window->layer;
+}
+
+void *COCOA_NextDrawable(COCOAwindow *handle)
+{
+  COCOA_Window *window = (COCOA_Window *)handle;
+  static id<CAMetalDrawable> currentDrawable = nil;
+  @autoreleasepool
+  {
+    if(currentDrawable != nil)
+      [currentDrawable release];
+
+    CAMetalLayer *metalLayer = window->layer;
+    id<CAMetalDrawable> drawable = [metalLayer nextDrawable];
+    [drawable retain];
+    currentDrawable = drawable;
+    return drawable;
+  }
 }
