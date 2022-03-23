@@ -8,7 +8,7 @@ TARGETS += metaltriangle
 #CFLAGS += -DGL_SILENCE_DEPRECATION -mmacosx-version-min=12.00 -arch arm64
 CFLAGS += -DGL_SILENCE_DEPRECATION 
 CXXFLAGS += -DGL_SILENCE_DEPRECATION 
-CXXFLAGS += -std=c++17
+CXXFLAGS += -std=c++17 -g
 
 SRC = apple_cocoa.m
 HEADERS = apple_cocoa.h

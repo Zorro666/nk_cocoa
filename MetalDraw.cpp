@@ -7,6 +7,9 @@
 //
 
 #include "MetalDraw.h"
+#include <stdio.h>
+
+FILE *fpLog = NULL;
 
 #import <simd/simd.h>
 
@@ -111,6 +114,7 @@ fragment float4 fragment_main(constant Debug_UBO& debug_UBO [[buffer(0)]],\n\
 
 MetalDraw *CreateMetalDraw()
 {
+  fpLog = fopen("metaltri.log", "wa");
   return new MetalDraw;
 }
 
@@ -124,6 +128,8 @@ void MetalDraw::Loaded()
 void MetalDraw::BuildDevice()
 {
   device = MTL::CreateSystemDefaultDevice();
+  fprintf(fpLog, "device class %s\n", class_getName(object_getClass(device)));
+  fflush(fpLog);
   printf("device name:'%s' registryID:%llu maxThreadsPerThreadgroup:%lu,%lu,%lu\n",
          device->name()->cString(NS::UTF8StringEncoding), device->registryID(),
          device->maxThreadsPerThreadgroup().width, device->maxThreadsPerThreadgroup().height,
@@ -158,6 +164,8 @@ void MetalDraw::BuildPipeline()
     fprintf(stderr, "Error occurred when creating default library\n");
     exit(0);
   }
+  fprintf(stderr, "Library class %s\n", class_getName(object_getClass(library)));
+  fprintf(fpLog, "Library class %s\n", class_getName(object_getClass(library)));
   printf(
       "Library.device %p name:'%s' registryID:%llu "
       "maxThreadsPerThreadgroup:%lu,%lu,%lu\n",
@@ -170,11 +178,13 @@ void MetalDraw::BuildPipeline()
   MTL::Function *vertexFunc = library->newFunction(tempString);
   tempString->release();
   tempString = nullptr;
+  fprintf(fpLog, "vertexFunc class %s\n", class_getName(object_getClass(vertexFunc)));
 
   tempString = nsString->init("fragment_main", NS::UTF8StringEncoding);
   MTL::Function *fragmentFunc = library->newFunction(tempString);
   tempString->release();
   tempString = nullptr;
+  fprintf(fpLog, "fragmentFunc class %s\n", class_getName(object_getClass(fragmentFunc)));
 
   MTL::RenderPipelineDescriptor *pipelineDescriptor = nullptr;
   pipelineDescriptor = pipelineDescriptor->alloc();
@@ -195,6 +205,7 @@ void MetalDraw::BuildPipeline()
             error->description()->utf8String());
     exit(0);
   }
+  fprintf(fpLog, "pipeline class %s\n", class_getName(object_getClass(pipeline)));
 
   tempString = nsString->init(debugShaders, NS::UTF8StringEncoding);
   MTL::Library *debugLibrary = device->newLibrary(tempString, NULL, &error);
@@ -253,6 +264,7 @@ void MetalDraw::BuildPipeline()
   textureDescriptor->setUsage(MTL::TextureUsageRenderTarget | MTL::TextureUsageShaderRead);
   textureDescriptor->setUsage(MTL::TextureUsageUnknown);
   fb1 = device->newTexture(textureDescriptor);
+  fprintf(fpLog, "fb1 class %s\n", class_getName(object_getClass(fb1)));
 
   debugPipeline = device->newRenderPipelineState(debugPipelineDescriptor, &error);
   if(!debugPipeline)
@@ -260,6 +272,7 @@ void MetalDraw::BuildPipeline()
     fprintf(stderr, "Error creating debugPipeline %s\n", error->description()->utf8String());
     exit(0);
   }
+  fprintf(fpLog, "debugPipeline class %s\n", class_getName(object_getClass(debugPipeline)));
 
   commandQueue = device->newCommandQueue();
   tempString = nsString->init("JakeQueue", NS::UTF8StringEncoding);
@@ -267,6 +280,7 @@ void MetalDraw::BuildPipeline()
   tempString->release();
   tempString = nullptr;
   printf("commandQueue label:'%s'\n", commandQueue->label()->utf8String());
+  fprintf(fpLog, "CommandQueue class %s\n", class_getName(object_getClass(commandQueue)));
 
   pipelineDescriptor->release();
   vertexFunc->release();
@@ -278,6 +292,7 @@ void MetalDraw::BuildPipeline()
   debugLibrary->release();
   library->release();
   nsString->release();
+  fflush(fpLog);
 }
 
 void MetalDraw::BuildVertexBuffers()
@@ -294,10 +309,12 @@ void MetalDraw::BuildVertexBuffers()
       device->newBuffer(positions, sizeof(positions), MTL::ResourceOptionCPUCacheModeDefault);
   colorBuffer = device->newBuffer(colors, sizeof(colors), MTL::ResourceOptionCPUCacheModeDefault);
   debugUBOBuffer = device->newBuffer(sizeof(Debug_UBO), MTL::ResourceStorageModeShared);
+  fprintf(fpLog, "buffer class %s\n", class_getName(object_getClass(positionBuffer)));
 }
 
 void MetalDraw::Draw(CA::MetalDrawable *pMetalDrawable)
 {
+  static int counter = 0;
   MTL::Texture *framebufferTexture = pMetalDrawable->texture();
   MTL::RenderPassDescriptor *renderPass1 = MTL::RenderPassDescriptor::renderPassDescriptor();
   MTL::RenderPassColorAttachmentDescriptorArray *colorAttachments1 = renderPass1->colorAttachments();
@@ -353,6 +370,16 @@ void MetalDraw::Draw(CA::MetalDrawable *pMetalDrawable)
   jake = (jake > 1.0f) ? 0.0f : jake;
   debug_UBO->darkCol = simd_make_float4(jake, 0.0f, 0.0f, 1.0f);
   commandBuffer2->commit();
+
+  if(counter == 0)
+  {
+    fprintf(fpLog, "texture class %s\n", class_getName(object_getClass(framebufferTexture)));
+    fprintf(fpLog, "commandEncoder class %s\n", class_getName(object_getClass(commandEncoder1)));
+    fprintf(fpLog, "commandBuffer class %s\n", class_getName(object_getClass(commandBuffer1)));
+
+    fflush(fpLog);
+  }
+  ++counter;
 }
 
 void MetalDraw::CopyFrameBuffer(MTL::Texture *framebuffer)
