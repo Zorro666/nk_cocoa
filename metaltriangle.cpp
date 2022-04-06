@@ -6,7 +6,7 @@
 static int closeWindow = 0;
 void KeyCallback(COCOAwindow *window, int key, int action)
 {
-  if((key == COCOA_KEY_ESCAPE) && (action = COCOA_PRESS))
+  if((key == COCOA_KEY_ESCAPE) && (action == COCOA_PRESS))
   {
     closeWindow = 1;
   }

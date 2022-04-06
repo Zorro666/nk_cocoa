@@ -11,6 +11,9 @@
 
 FILE *fpLog = NULL;
 
+static bool createPermanentResourcesInFrame = true;
+static int frame = -1;
+
 #import <simd/simd.h>
 
 typedef struct Debug_UBO
@@ -122,7 +125,11 @@ void MetalDraw::Loaded()
 {
   BuildDevice();
   BuildVertexBuffers();
-  BuildPipeline();
+  if(!createPermanentResourcesInFrame)
+  {
+    BuildPipeline();
+  }
+  frame = 0;
 }
 
 void MetalDraw::BuildDevice()
@@ -147,6 +154,30 @@ void MetalDraw::BuildDevice()
       "areRasterOrderGroupsSupported:%d\n",
       device->depth24Stencil8PixelFormatSupported(), (unsigned long)device->readWriteTextureSupport(),
       (unsigned long)device->argumentBuffersSupport(), device->rasterOrderGroupsSupported());
+
+  printf("device supportsFamily GPUFamilyCommon1 %d\n",
+         device->supportsFamily(MTL::GPUFamilyCommon1));
+  printf("device supportsFamily GPUFamilyCommon2 %d\n",
+         device->supportsFamily(MTL::GPUFamilyCommon2));
+  printf("device supportsFamily GPUFamilyCommon3 %d\n",
+         device->supportsFamily(MTL::GPUFamilyCommon3));
+
+  printf("device supportsFamily GPUFamilyApple1 %d\n", device->supportsFamily(MTL::GPUFamilyApple1));
+  printf("device supportsFamily GPUFamilyApple2 %d\n", device->supportsFamily(MTL::GPUFamilyApple2));
+  printf("device supportsFamily GPUFamilyApple3 %d\n", device->supportsFamily(MTL::GPUFamilyApple3));
+  printf("device supportsFamily GPUFamilyApple4 %d\n", device->supportsFamily(MTL::GPUFamilyApple4));
+  printf("device supportsFamily GPUFamilyApple5 %d\n", device->supportsFamily(MTL::GPUFamilyApple5));
+  printf("device supportsFamily GPUFamilyApple6 %d\n", device->supportsFamily(MTL::GPUFamilyApple6));
+  printf("device supportsFamily GPUFamilyApple7 %d\n", device->supportsFamily(MTL::GPUFamilyApple7));
+  printf("device supportsFamily GPUFamilyApple8 %d\n", device->supportsFamily(MTL::GPUFamilyApple8));
+
+  printf("device supportsFamily GPUFamilyMac1 %d\n", device->supportsFamily(MTL::GPUFamilyMac1));
+  printf("device supportsFamily GPUFamilyMac2 %d\n", device->supportsFamily(MTL::GPUFamilyMac2));
+
+  printf("device supportsFamily GPUFamilyMacCatalyst1 %d\n",
+         device->supportsFamily(MTL::GPUFamilyMacCatalyst1));
+  printf("device supportsFamily GPUFamilyMacCatalyst2 %d\n",
+         device->supportsFamily(MTL::GPUFamilyMacCatalyst2));
 }
 
 void MetalDraw::BuildPipeline()
@@ -314,7 +345,11 @@ void MetalDraw::BuildVertexBuffers()
 
 void MetalDraw::Draw(CA::MetalDrawable *pMetalDrawable)
 {
-  static int counter = 0;
+  if(createPermanentResourcesInFrame)
+  {
+    BuildPipeline();
+  }
+
   MTL::Texture *framebufferTexture = pMetalDrawable->texture();
   MTL::RenderPassDescriptor *renderPass1 = MTL::RenderPassDescriptor::renderPassDescriptor();
   MTL::RenderPassColorAttachmentDescriptorArray *colorAttachments1 = renderPass1->colorAttachments();
@@ -371,7 +406,7 @@ void MetalDraw::Draw(CA::MetalDrawable *pMetalDrawable)
   debug_UBO->darkCol = simd_make_float4(jake, 0.0f, 0.0f, 1.0f);
   commandBuffer2->commit();
 
-  if(counter == 0)
+  if(frame == 0)
   {
     fprintf(fpLog, "texture class %s\n", class_getName(object_getClass(framebufferTexture)));
     fprintf(fpLog, "commandEncoder class %s\n", class_getName(object_getClass(commandEncoder1)));
@@ -379,7 +414,7 @@ void MetalDraw::Draw(CA::MetalDrawable *pMetalDrawable)
 
     fflush(fpLog);
   }
-  ++counter;
+  ++frame;
 }
 
 void MetalDraw::CopyFrameBuffer(MTL::Texture *framebuffer)
