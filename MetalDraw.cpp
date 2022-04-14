@@ -11,7 +11,7 @@
 
 FILE *fpLog = NULL;
 
-static bool createPermanentResourcesInFrame = true;
+static bool createPermanentResourcesInFrame = false;
 static int frame = -1;
 
 #import <simd/simd.h>
@@ -359,6 +359,8 @@ void MetalDraw::Draw(CA::MetalDrawable *pMetalDrawable)
   colorAttachments1->object(0)->setLoadAction(MTL::LoadActionClear);
 
   MTL::CommandBuffer *commandBuffer1 = commandQueue->commandBuffer();
+  MTL::CommandBuffer *commandBuffer2 = commandQueue->commandBuffer();
+  MTL::CommandBuffer *commandBuffer3 = commandQueue->commandBuffer();
 
   MTL::RenderCommandEncoder *commandEncoder1 = commandBuffer1->renderCommandEncoder(renderPass1);
   commandEncoder1->setRenderPipelineState(pipeline);
@@ -368,7 +370,6 @@ void MetalDraw::Draw(CA::MetalDrawable *pMetalDrawable)
   commandEncoder1->endEncoding();
 
   commandBuffer1->commit();
-  MTL::CommandBuffer *commandBuffer2 = commandQueue->commandBuffer();
   Debug_UBO *debug_UBO = (Debug_UBO *)debugUBOBuffer->contents();
   debug_UBO->constants.x = framebufferTexture->width();
   debug_UBO->constants.y = framebufferTexture->height();
@@ -403,8 +404,10 @@ void MetalDraw::Draw(CA::MetalDrawable *pMetalDrawable)
   static float jake = 0.0f;
   jake += 0.01f;
   jake = (jake > 1.0f) ? 0.0f : jake;
-  debug_UBO->darkCol = simd_make_float4(jake, 0.0f, 0.0f, 1.0f);
+  // debug_UBO->darkCol = simd_make_float4(jake, 0.0f, 0.0f, 1.0f);
   commandBuffer2->commit();
+
+  commandBuffer3->commit();
 
   if(frame == 0)
   {

@@ -577,7 +577,7 @@ void COCOA_Poll(void)
       [NSApp sendEvent:event];
     }
   }
-  [NSThread sleepForTimeInterval:1.0 / 30.0];
+  [NSThread sleepForTimeInterval:1.0 / 20.0];
 }
 
 void COCOA_GetMousePosition(COCOAwindow *handle, double *xpos, double *ypos)
