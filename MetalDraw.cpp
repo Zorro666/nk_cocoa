@@ -14,6 +14,14 @@ FILE *fpLog = NULL;
 static bool createPermanentResourcesInFrame = false;
 static int frame = -1;
 
+static const float positions[] = {
+    0.0, 0.5, 0, 1, -0.5, -0.5, 0, 1, 0.5, -0.5, 0, 1,
+};
+
+static const float colors[] = {
+    1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+};
+
 #import <simd/simd.h>
 
 typedef struct Debug_UBO
@@ -313,6 +321,16 @@ void MetalDraw::BuildPipeline()
   printf("commandQueue label:'%s'\n", commandQueue->label()->utf8String());
   fprintf(fpLog, "CommandQueue class %s\n", class_getName(object_getClass(commandQueue)));
 
+  MTL::Buffer *positionBufferData =
+      device->newBuffer(positions, sizeof(positions), MTL::ResourceStorageModeShared);
+  MTL::CommandBuffer *mtlCommandBuffer = commandQueue->commandBuffer();
+  MTL::BlitCommandEncoder *mtlBlitEncoder = mtlCommandBuffer->blitCommandEncoder();
+  mtlBlitEncoder->copyFromBuffer(positionBufferData, 0, positionBuffer, 0, sizeof(positions));
+  mtlBlitEncoder->endEncoding();
+  mtlCommandBuffer->commit();
+  mtlCommandBuffer->waitUntilCompleted();
+  positionBufferData->release();
+
   pipelineDescriptor->release();
   vertexFunc->release();
   fragmentFunc->release();
@@ -328,17 +346,8 @@ void MetalDraw::BuildPipeline()
 
 void MetalDraw::BuildVertexBuffers()
 {
-  static const float positions[] = {
-      0.0, 0.5, 0, 1, -0.5, -0.5, 0, 1, 0.5, -0.5, 0, 1,
-  };
-
-  static const float colors[] = {
-      1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-  };
-
-  positionBuffer =
-      device->newBuffer(positions, sizeof(positions), MTL::ResourceOptionCPUCacheModeDefault);
-  colorBuffer = device->newBuffer(colors, sizeof(colors), MTL::ResourceOptionCPUCacheModeDefault);
+  positionBuffer = device->newBuffer(sizeof(positions), MTL::ResourceStorageModePrivate);
+  colorBuffer = device->newBuffer(colors, sizeof(colors), MTL::ResourceStorageModeManaged);
   debugUBOBuffer = device->newBuffer(sizeof(Debug_UBO), MTL::ResourceStorageModeShared);
   fprintf(fpLog, "buffer class %s\n", class_getName(object_getClass(positionBuffer)));
 }
@@ -363,6 +372,22 @@ void MetalDraw::Draw(CA::MetalDrawable *pMetalDrawable)
   MTL::CommandBuffer *commandBuffer3 = commandQueue->commandBuffer();
 
   MTL::RenderCommandEncoder *commandEncoder1 = commandBuffer1->renderCommandEncoder(renderPass1);
+  float *colours = (float *)colorBuffer->contents();
+  float temp;
+  temp = colours[0];
+  colours[0] = colours[8];
+  colours[8] = colours[4];
+  colours[4] = temp;
+  temp = colours[0 + 1];
+  colours[0 + 1] = colours[8 + 1];
+  colours[8 + 1] = colours[4 + 1];
+  colours[4 + 1] = temp;
+  temp = colours[0 + 2];
+  colours[0 + 2] = colours[8 + 2];
+  colours[8 + 2] = colours[4 + 2];
+  colours[4 + 2] = temp;
+  NS::Range range = NS::Range::Make(0, sizeof(float) * 12);
+  colorBuffer->didModifyRange(range);
   commandEncoder1->setRenderPipelineState(pipeline);
   commandEncoder1->setVertexBuffer(positionBuffer, 0, 0);
   commandEncoder1->setVertexBuffer(colorBuffer, 0, 1);
@@ -404,7 +429,7 @@ void MetalDraw::Draw(CA::MetalDrawable *pMetalDrawable)
   static float jake = 0.0f;
   jake += 0.01f;
   jake = (jake > 1.0f) ? 0.0f : jake;
-  // debug_UBO->darkCol = simd_make_float4(jake, 0.0f, 0.0f, 1.0f);
+  debug_UBO->darkCol = simd_make_float4(jake, 0.0f, 0.0f, 1.0f);
   commandBuffer2->commit();
 
   commandBuffer3->commit();
