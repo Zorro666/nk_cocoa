@@ -16,10 +16,11 @@ static int frame = -1;
 
 static const float positions[] = {
     0.0, 0.5, 0, 1, -0.5, -0.5, 0, 1, 0.5, -0.5, 0, 1,
+    0.0, 0.5, 0, 1, -0.5, -0.5, 0, 1, 0.5, -0.5, 0, 1,
 };
 
 static const float colors[] = {
-    1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 };
 
 #import <simd/simd.h>
@@ -347,7 +348,9 @@ void MetalDraw::BuildPipeline()
 void MetalDraw::BuildVertexBuffers()
 {
   positionBuffer = device->newBuffer(sizeof(positions), MTL::ResourceStorageModePrivate);
+  positionBuffer2 = device->newBuffer(positions, sizeof(positions), MTL::ResourceStorageModeShared);
   colorBuffer = device->newBuffer(colors, sizeof(colors), MTL::ResourceStorageModeManaged);
+  colorBuffer2 = device->newBuffer(colors, sizeof(colors), MTL::ResourceStorageModeShared);
   debugUBOBuffer = device->newBuffer(sizeof(Debug_UBO), MTL::ResourceStorageModeShared);
   fprintf(fpLog, "buffer class %s\n", class_getName(object_getClass(positionBuffer)));
 }
@@ -367,34 +370,95 @@ void MetalDraw::Draw(CA::MetalDrawable *pMetalDrawable)
   colorAttachments1->object(0)->setStoreAction(MTL::StoreActionStore);
   colorAttachments1->object(0)->setLoadAction(MTL::LoadActionClear);
 
+  MTL::RenderPassDescriptor *renderPass4 = MTL::RenderPassDescriptor::renderPassDescriptor();
+  MTL::RenderPassColorAttachmentDescriptorArray *colorAttachments4 = renderPass4->colorAttachments();
+  colorAttachments4->object(0)->setTexture(fb1);
+  colorAttachments4->object(0)->setStoreAction(MTL::StoreActionStore);
+  colorAttachments4->object(0)->setLoadAction(MTL::LoadActionLoad);
+
   MTL::CommandBuffer *commandBuffer1 = commandQueue->commandBuffer();
   MTL::CommandBuffer *commandBuffer2 = commandQueue->commandBuffer();
-  MTL::CommandBuffer *commandBuffer3 = commandQueue->commandBuffer();
 
   MTL::RenderCommandEncoder *commandEncoder1 = commandBuffer1->renderCommandEncoder(renderPass1);
   float *colours = (float *)colorBuffer->contents();
-  float temp;
-  temp = colours[0];
-  colours[0] = colours[8];
-  colours[8] = colours[4];
-  colours[4] = temp;
-  temp = colours[0 + 1];
-  colours[0 + 1] = colours[8 + 1];
-  colours[8 + 1] = colours[4 + 1];
-  colours[4 + 1] = temp;
-  temp = colours[0 + 2];
-  colours[0 + 2] = colours[8 + 2];
-  colours[8 + 2] = colours[4 + 2];
-  colours[4 + 2] = temp;
+  if(frame == 0)
+  {
+    colours[0] = 1.0f;
+    colours[1] = 0.0f;
+    colours[2] = 0.0f;
+    colours[4] = 0.0f;
+    colours[5] = 1.0f;
+    colours[6] = 0.0f;
+    colours[8] = 0.0f;
+    colours[9] = 0.0f;
+    colours[10] = 1.0f;
+  }
+  else
+  {
+    float temp;
+    temp = colours[0];
+    colours[0] = colours[8];
+    colours[8] = colours[4];
+    colours[4] = temp;
+    temp = colours[0 + 1];
+    colours[0 + 1] = colours[8 + 1];
+    colours[8 + 1] = colours[4 + 1];
+    colours[4 + 1] = temp;
+    temp = colours[0 + 2];
+    colours[0 + 2] = colours[8 + 2];
+    colours[8 + 2] = colours[4 + 2];
+    colours[4 + 2] = temp;
+  }
   NS::Range range = NS::Range::Make(0, sizeof(float) * 12);
   colorBuffer->didModifyRange(range);
   commandEncoder1->setRenderPipelineState(pipeline);
   commandEncoder1->setVertexBuffer(positionBuffer, 0, 0);
   commandEncoder1->setVertexBuffer(colorBuffer, 0, 1);
   commandEncoder1->drawPrimitives(MTL::PrimitiveTypeTriangle, 0, 3, 1);
+  float *positions2 = (float *)positionBuffer2->contents();
+  for(int i = 0; i < 3; ++i)
+  {
+    positions2[i * 4] = positions[i * 4] + 0.4f;
+    positions2[i * 4 + 1] = positions[i * 4 + 1] + 0.3f;
+    positions2[12 + i * 4] = positions[i * 4] + 0.4f;
+    positions2[12 + i * 4 + 1] = positions[i * 4 + 1] - 0.3f;
+  }
+  float *colours2 = (float *)colorBuffer2->contents();
+  for(int i = 0; i < 3; ++i)
+  {
+    colours2[i * 4] = 1.0f;
+    colours2[i * 4 + 1] = 0.0f;
+    colours2[i * 4 + 2] = 0.0f;
+  }
+  commandEncoder1->setVertexBuffer(positionBuffer2, 0, 0);
+  commandEncoder1->setVertexBuffer(colorBuffer2, 0, 1);
+  commandEncoder1->drawPrimitives(MTL::PrimitiveTypeTriangle, 0, 3, 1);
   commandEncoder1->endEncoding();
 
   commandBuffer1->commit();
+  commandBuffer1->waitUntilCompleted();
+  MTL::CommandBuffer *commandBuffer4 = commandQueue->commandBuffer();
+  MTL::RenderCommandEncoder *commandEncoder4 = commandBuffer4->renderCommandEncoder(renderPass4);
+  for(int i = 0; i < 3; ++i)
+  {
+    positions2[i * 4] = positions[i * 4] - 0.4f;
+    positions2[i * 4 + 1] = positions[i * 4 + 1] - 0.3f;
+    positions2[12 + i * 4] = positions[i * 4] - 0.4f;
+    positions2[12 + i * 4 + 1] = positions[i * 4 + 1] + 0.3f;
+  }
+  for(int i = 0; i < 3; ++i)
+  {
+    colours2[i * 4] = 0.0f;
+    colours2[i * 4 + 1] = 1.0f;
+    colours2[i * 4 + 2] = 0.0f;
+  }
+  commandEncoder4->setRenderPipelineState(pipeline);
+  commandEncoder4->setVertexBuffer(positionBuffer2, 48, 0);
+  commandEncoder4->setVertexBuffer(colorBuffer2, 0, 1);
+  commandEncoder4->drawPrimitives(MTL::PrimitiveTypeTriangle, 0, 3, 1);
+  commandEncoder4->endEncoding();
+  commandBuffer4->commit();
+
   Debug_UBO *debug_UBO = (Debug_UBO *)debugUBOBuffer->contents();
   debug_UBO->constants.x = framebufferTexture->width();
   debug_UBO->constants.y = framebufferTexture->height();
@@ -431,8 +495,6 @@ void MetalDraw::Draw(CA::MetalDrawable *pMetalDrawable)
   jake = (jake > 1.0f) ? 0.0f : jake;
   debug_UBO->darkCol = simd_make_float4(jake, 0.0f, 0.0f, 1.0f);
   commandBuffer2->commit();
-
-  commandBuffer3->commit();
 
   if(frame == 0)
   {

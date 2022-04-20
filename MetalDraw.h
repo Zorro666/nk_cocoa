@@ -20,7 +20,9 @@ struct MetalDraw
   MTL::RenderPipelineState *pipeline;
   MTL::CommandQueue *commandQueue;
   MTL::Buffer *positionBuffer;
+  MTL::Buffer *positionBuffer2;
   MTL::Buffer *colorBuffer;
+  MTL::Buffer *colorBuffer2;
 
   MTL::RenderPipelineState *debugPipeline;
   MTL::Buffer *debugUBOBuffer;
