@@ -366,7 +366,7 @@ void MetalDraw::Draw(CA::MetalDrawable *pMetalDrawable)
   MTL::RenderPassDescriptor *renderPass1 = MTL::RenderPassDescriptor::renderPassDescriptor();
   MTL::RenderPassColorAttachmentDescriptorArray *colorAttachments1 = renderPass1->colorAttachments();
   colorAttachments1->object(0)->setTexture(fb1);
-  colorAttachments1->object(0)->setClearColor(MTL::ClearColor(1.0, 1.0, 1.0, 1.0));
+  colorAttachments1->object(0)->setClearColor(MTL::ClearColor(0.2, 0.8, 0.4, 0.0));
   colorAttachments1->object(0)->setStoreAction(MTL::StoreActionStore);
   colorAttachments1->object(0)->setLoadAction(MTL::LoadActionClear);
 
